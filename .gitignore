@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Temporary outputs
+tmp/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+.tf_plugin_cache/
+
+
+
+
+# Generated files
+core/.check_ids.json
+
+# Review outputs
+reviews/
+
+# Pytest / coverage
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Local binaries (downloaded by setup script — không commit)
+bin/*.exe
+bin/*.zip
+bin/*.bat
+bin/awscli/
