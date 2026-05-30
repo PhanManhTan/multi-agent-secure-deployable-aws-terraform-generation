@@ -1,153 +1,205 @@
-# BÁO CÁO ĐÁNH GIÁ HỆ THỐNG MULTI-AGENT TERRAFORM GENERATION
+## Overview
+Hệ thống **Multi-Agent Terraform Generation** chuyển đổi yêu cầu hạ tầng bằng ngôn ngữ tự nhiên thành Terraform HCL có thể validate, kiểm tra security, đối chiếu intent và deploy thử trên AWS. Pipeline dùng LangGraph để phối hợp nhiều agent chuyên trách: phân tích kiến trúc, hardening security, sinh Terraform, validation, kiểm tra Rego intent và deploy thực tế.
 
-> [!NOTE]
-> Báo cáo này tóm tắt toàn bộ kiến trúc hệ thống sinh mã Terraform tự động bằng mô hình Multi-Agent (LangGraph), phân tích chi tiết từng file mã nguồn, hướng dẫn chạy, đánh giá kết quả kiểm thử và định hướng tối ưu hóa hệ thống.
+Benchmark mới nhất được ghi trong `result_full_174.json`, chạy trên `dataset/data-filtered.csv` với **174 cases**. Kết quả chính:
 
----
+| Chỉ số | Kết quả | Nhận xét |
+| :--- | ---: | :--- |
+| A1 Architecture | 171/174 (98.3%) | Plan kiến trúc ổn định, chỉ 3 case không sinh resource. |
+| A3 Engineering | 171/174 (98.3%) | Hầu hết case đi qua A1 đều sinh được Terraform HCL. |
+| A4 Terraform validate/plan | 151/174 (86.8%) | Tỷ lệ validate/plan tốt, nhưng còn 20 case cần schema/logic repair. |
+| Dataset resource match | 150/174 (86.2%) | Resource coverage khá tốt, còn 9 case thiếu resource theo dataset. |
+| Rego intent | 99/174 (56.9%) | Điểm nghẽn lớn nhất của strict benchmark. |
+| AWS deploy OK | 131/174 (75.3%) | 131 case apply/destroy thành công trên AWS. |
+| Strict end-to-end | 81/174 (46.6%) | Metric nghiêm ngặt nhất: Resource + Rego + validate + deploy. |
+| Deployable code | 122/174 (70.1%) | Code validate và deploy được, bỏ qua Rego benchmark. |
+| Adjusted code-success | 129/174 (74.1%) | Metric thực dụng nhất: tính code deploy được hoặc chỉ bị chặn bởi AWS environment/quota. |
 
-## 1. TỔNG QUAN HỆ THỐNG (OVERVIEW)
+Kết luận ngắn: pipeline đã đạt mức **deployable code 70.1%** và **adjusted code-success 74.1%** trên benchmark 174 cases. Hạn chế chính hiện tại không nằm ở một điểm duy nhất, mà chia thành ba nhóm: Rego benchmark còn quá chặt, một số lỗi schema/deployability của Terraform/AWS Provider, và các giới hạn môi trường AWS như quota/subscription.
 
-Hệ thống **Multi-Agent Terraform Generation** là một đường ống (pipeline) tự động hóa quy trình chuyển đổi yêu cầu bằng ngôn ngữ tự nhiên thành mã hạ tầng dạng mã (IaC) Terraform an toàn, có khả năng triển khai thực tế trên AWS. 
+## 1. Phạm Vi Báo Cáo
 
-Hệ thống sử dụng **LangGraph** để kết nối 5 Agent chuyên biệt thành một đồ thị có trạng thái (StateGraph), hỗ trợ cơ chế phản hồi sửa lỗi tự động (self-correcting/retry loop) dựa trên phản hồi lỗi thực tế từ trình biên dịch Terraform và công cụ quét bảo mật Checkov.
+Báo cáo này tập trung vào:
 
-```mermaid
-graph TD
-    START((START)) --> A1[A1: Architecture Agent]
-    A1 --> A2[A2: Security Agent]
-    A2 --> A3[A3: Engineering Agent]
-    A3 --> A4[A4: Validation Agent]
-    
-    A4 -- "FAIL (Lỗi cú pháp/Bảo mật)" --> A3
-    A4 -- "FAIL (Thiếu tài nguyên)" --> A1
-    A4 -- "PASS (Hợp lệ)" --> Rego{Rego Compliance}
-    
-    Rego --> A5[A5: Deployment Agent]
-    A5 -- "FAIL (Lỗi deploy AWS)" --> A3
-    A5 -- "PASS (Thành công)" --> END(((END - Auto Destroy)))
-```
+- Kiến trúc multi-agent và vai trò từng module chính.
+- Cách chạy pipeline và benchmark.
+- Ý nghĩa các metric trong `final_eval`.
+- Kết quả benchmark 174 cases hiện tại.
+- Các nhóm lỗi chính và hướng ưu tiên cải thiện.
 
----
+Nguồn số liệu:
 
-## 2. CHI TIẾT TỪNG FILE TRONG MÃ NGUỒN (SOURCE CODE FILES ANALYSIS)
+- Result file: `result_full_174.json`
+- Dataset: `dataset/data-filtered.csv`
+- Lệnh phân tích:
 
-Cấu trúc thư mục dự án được tổ chức như sau:
-
-| Thư mục / File | Chức năng & Ý nghĩa |
-| :--- | :--- |
-| **`main.py`** | Entrypoint chính để chạy pipeline với một prompt đơn lẻ hoặc chạy hàng loạt (batch) ở chế độ CLI thông thường. |
-| **`benchmark_pipeline.py`** | Script chạy kiểm thử tự động (benchmark) toàn bộ hoặc một phần các test case từ dataset CSV, tích hợp cổng chấm điểm Rego và AWS Deploy. |
-| **`graph.py`** | Định nghĩa cấu trúc đồ thị luồng đi của các Agent (LangGraph), các cạnh có điều kiện và cơ chế chuyển đổi trạng thái giữa các Agent. |
-| **`agents/`** | Thư mục chứa logic nghiệp vụ và lời gọi LLM của 5 Agents chuyên biệt. |
-| **`core/`** | Chứa nhân hệ thống bao gồm: gọi LLM, định nghĩa trạng thái đồ thị (State), bộ phân tích kết quả JSON và wrapper bọc các lệnh CLI Terraform. |
-| **`prompts/`** | Lưu trữ các System Prompts và User Templates bằng ngôn ngữ tự nhiên làm chỉ dẫn cho từng Agent. |
-| **`dataset/`** | Chứa các file dữ liệu kiểm thử (CSV), các công cụ hỗ trợ lọc dữ liệu và script phân tích kết quả chuyên sâu `analyze_results.py`. |
-
-### Chi tiết các File trong thư mục `agents/`
-
-1. **architecture.py**: 
-   * **Nhiệm vụ:** Nhận prompt yêu cầu của người dùng, phân tích và lên danh sách các tài nguyên AWS cần thiết (`infrastructure_plan`).
-2. **security.py**:
-   * **Nhiệm vụ:** Nhận bản thiết kế kiến trúc từ A1, đối chiếu với bộ quy tắc Checkov để gán các nhãn bảo mật (CKV Rule IDs) cần tuân thủ cho từng tài nguyên.
-3. **engineering.py**:
-   * **Nhiệm vụ:** Nhận bản thiết kế và các yêu cầu bảo mật, tiến hành viết mã Terraform HCL thực tế (`main.tf`, `variables.tf`,...).
-4. **validation.py**:
-   * **Nhiệm vụ:** Chạy cục bộ `terraform validate`, `terraform plan` và quét bảo mật bằng `checkov`. Nếu phát hiện lỗi, nó sẽ trích xuất thông tin lỗi chi tiết, tạo chỉ dẫn sửa đổi (`fix_feedback`) và định tuyến quay lại A1, A2 hoặc A3 để AI tự động sửa.
-5. **deployment.py**:
-   * **Nhiệm vụ:** Thực hiện triển khai hạ tầng thực tế lên AWS thông qua `terraform apply`. Nếu apply lỗi, nó sẽ định tuyến quay lại bước sửa mã; nếu thành công, nó sẽ tiến hành hủy tài nguyên (`terraform destroy`) để dọn dẹp hệ thống.
-
-### Chi tiết các File trong thư mục `core/`
-
-* **state.py**: Định nghĩa cấu trúc `AgentState` lưu trữ toàn bộ trạng thái chạy của đồ thị (các tham số cấu hình, lịch sử lỗi, số lần retry, mã code sinh ra).
-* **llm.py**: Quản lý kết nối tới API của mô hình ngôn ngữ lớn (NVIDIA NIM hoặc DeepSeek).
-* **terraform.py**: Bọc các lệnh thực thi CLI của Terraform (`init`, `plan`, `apply`, `destroy`) và tích hợp lệnh chạy kiểm tra chính sách nghiệp vụ bằng Open Policy Agent (OPA) qua file `.rego`.
-
----
-
-## 3. HƯỚNG DẪN CHẠY HỆ THỐNG (RUNNING GUIDE)
-
-Để hệ thống hoạt động chính xác, bạn cần kích hoạt môi trường ảo Python và thiết lập API keys trong file `.env`:
-
-### 3.1. Chạy một Prompt đơn lẻ
-Sinh mã Terraform và lưu ra file `infra.tf`:
 ```bash
-python main.py "Create an S3 bucket with versioning and server-side encryption" --output infra.tf
-```
-
-### 3.2. Chạy thử nghiệm trên bộ dữ liệu (Dataset Benchmark)
-Chạy toàn bộ đường ống kiểm thử tự động trên bộ dữ liệu filtered 174 cases (`data-filtered.csv`) sử dụng 4 luồng song song để tăng tốc độ:
-```bash
-python benchmark_pipeline.py --csv dataset/data-filtered.csv --cases 0-173 --workers 4 --out reviews/pipeline_results_filtered_full.json
-```
-*Kết quả chạy sẽ được lưu mặc định tại file `reviews/pipeline_results.json`.*
-
-### 3.3. Phân tích kết quả kiểm thử nâng cao
-Để đọc và phân loại các lỗi từ file JSON kết quả, hãy chạy công cụ phân tích:
-```bash
-python dataset/analyze_results.py reviews/pipeline_results_filtered_full.json --csv dataset/data-filtered.csv
-
-# Hoặc phân tích kết quả benchmark hiện tại trong workspace:
 python dataset/analyze_results.py result_full_174.json --csv dataset/data-filtered.csv
 ```
 
----
+## 2. Kiến Trúc Hệ Thống
 
-## 4. ĐÁNH GIÁ KẾT QUẢ KIỂM THỬ (BENCHMARK EVALUATION)
+Pipeline được tổ chức theo mô hình multi-agent. Mỗi agent phụ trách một giai đoạn rõ ràng, giúp hệ thống dễ debug, dễ retry và dễ mở rộng.
 
-Dựa trên kết quả benchmark hiện tại **174 cases** trong `result_full_174.json`, chạy với `dataset/data-filtered.csv`, hệ thống đạt các chỉ số sau:
+```mermaid
+graph TD
+    START((START)) --> A1[A1 Architecture Agent]
+    A1 --> A2[A2 Security Agent]
+    A2 --> A3[A3 Engineering Agent]
+    A3 --> A4[A4 Validation Agent]
 
-### 4.1. Ý nghĩa các thuộc tính đánh giá
+    A4 -- "Validation fail" --> A3
+    A4 -- "Missing resource" --> A1
+    A4 -- "Validation pass" --> Rego{Rego Intent}
 
-Các thuộc tính trong `final_eval` được dùng để tách bạch lỗi benchmark, lỗi code và lỗi môi trường AWS:
+    Rego --> A5[A5 Deployment Agent]
+    A5 -- "Deploy fail, fixable" --> A3
+    A5 -- "Missing resource" --> A1
+    A5 -- "Deploy pass" --> END(((END + Auto Destroy)))
+```
+
+### 2.1. Vai Trò Các Agent
+
+| Agent | File chính | Vai trò |
+| :--- | :--- | :--- |
+| A1 Architecture | `agents/architecture.py` | Phân tích prompt và sinh `infrastructure_plan`: resource, data source, attribute, dependency. |
+| A2 Security | `agents/security.py` | Gắn security requirements/CKV IDs dựa trên plan. |
+| A3 Engineering | `agents/engineering.py` | Sinh Terraform HCL, thêm provider block và postprocess các lỗi Terraform/AWS phổ biến. |
+| A4 Validation | `agents/validation.py` | Chạy `terraform init/validate/plan`, Checkov và sinh fix feedback khi lỗi. |
+| Rego Intent | `core/terraform.py`, `benchmark_pipeline.py` | Chạy OPA/Rego trên JSON plan để đối chiếu intent của dataset. |
+| A5 Deployment | `agents/deployment.py` | Chạy `terraform apply`, auto-destroy, phân loại lỗi deploy và route retry. |
+
+### 2.2. Các File Và Thư Mục Chính
+
+| Path | Mục đích |
+| :--- | :--- |
+| `main.py` | Entry point cho một prompt đơn lẻ hoặc flow sử dụng trực tiếp. |
+| `benchmark_pipeline.py` | Benchmark runner cho dataset CSV, ghi JSON result đầy đủ. |
+| `graph.py` | Định nghĩa LangGraph và routing giữa các agent. |
+| `core/state.py` | Định nghĩa state dùng chung trong pipeline. |
+| `core/terraform.py` | Wrapper cho Terraform, Checkov, OPA/Rego và file stubs. |
+| `core/llm.py` | Kết nối LLM provider như NVIDIA NIM hoặc DeepSeek. |
+| `dataset/analyze_results.py` | Analyzer đọc result JSON và phân loại lỗi theo hướng xử lý. |
+| `tests/test_static_rules.py` | Unit tests cho static rules, analyzer flags và deterministic repairs. |
+
+## 3. Cách Chạy Hệ Thống
+
+### 3.1. Chuẩn Bị `.venv`
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Kiểm tra nhanh:
+
+```bash
+which python
+python --version
+terraform version
+checkov --version
+aws --version
+```
+
+### 3.2. Chạy Một Prompt
+
+```bash
+python main.py "Create an S3 bucket with versioning and server-side encryption"
+```
+
+Ghi Terraform ra file:
+
+```bash
+python main.py "Create a private VPC with two subnets" --output infra.tf
+```
+
+Destroy resources từ Terraform file đã có:
+
+```bash
+python main.py --destroy infra.tf
+```
+
+### 3.3. Chạy Benchmark
+
+Chạy toàn bộ `dataset/data-filtered.csv` 174 cases:
+
+```bash
+python benchmark_pipeline.py --csv dataset/data-filtered.csv --cases 0-173 --workers 4 --out reviews/pipeline_results_filtered_full.json
+```
+
+Phân tích result:
+
+```bash
+python dataset/analyze_results.py reviews/pipeline_results_filtered_full.json --csv dataset/data-filtered.csv
+```
+
+Phân tích result hiện tại trong workspace:
+
+```bash
+python dataset/analyze_results.py result_full_174.json --csv dataset/data-filtered.csv
+```
+
+### 3.4. Kiểm Tra Nhanh Trước Khi Chạy Benchmark Tốn AWS/LLM
+
+```bash
+python -m unittest tests/test_static_rules.py
+python -m py_compile agents/architecture.py agents/deployment.py agents/validation.py core/terraform.py benchmark_pipeline.py dataset/analyze_results.py
+```
+
+## 4. Ý Nghĩa Các Metric
+
+Các metric trong `final_eval` giúp tách bạch ba loại vấn đề: lỗi code sinh ra, lỗi benchmark/Rego, và lỗi môi trường AWS.
 
 | Thuộc tính | Ý nghĩa |
 | :--- | :--- |
-| `dataset_resource_ok` | Generated Terraform có đủ resource bắt buộc theo cột `Resource`/`esource` của dataset. Helper/data source được tách riêng để không làm sai điểm resource chính. |
-| `intent_literal_ok` | Các literal rõ ràng trong `Prompt`/`Intent` như `lambda.js`, `custom_ttl_attribute`, `password1`, `cron(...)`, `BucketOwner`, `log/` xuất hiện đúng trong code. |
-| `terraform_validation_ok` | A4 chạy Terraform validate/plan thành công. Đây là cổng kiểm tra cú pháp, schema provider và một phần logic Terraform trước deploy. |
-| `rego_intent_ok` | Code thỏa rule trong cột `Rego intent`. Đây là benchmark gate, không đồng nghĩa tuyệt đối với deployability vì một số Rego có check quá cụ thể. |
-| `deploy_ok` | Terraform apply lên AWS và auto-destroy thành công. |
-| `predeploy_strict_ok` | `terraform_validation_ok` + `dataset_resource_ok` + `rego_intent_ok` đều pass, chưa tính deploy AWS. |
-| `end_to_end_strict_ok` | `predeploy_strict_ok` + `deploy_ok`. Đây là điểm strict benchmark nghiêm ngặt nhất. |
-| `code_predeploy_ok` | Code pass Terraform validation, resource match và literal intent; chưa tính Rego và AWS deploy. |
-| `deployable_code_ok` | Code validate được và deploy được trên AWS; dùng để đánh giá khả năng chạy thực tế, bỏ qua Rego benchmark. |
-| `adjusted_code_success_ok` | Thành công thực dụng: code deploy được, hoặc chỉ bị chặn bởi môi trường AWS/quota. Đây là metric nên dùng khi đánh giá chất lượng code sinh ra. |
-| `benchmark_only_rego_fail` | Rego fail nhưng code vẫn validate/resource/literal/deploy OK. Nên đưa vào nhóm audit dataset/Rego, không vội tính là lỗi code. |
-| `deploy_environment_blocked` | Code qua các gate chính nhưng AWS account/region/quota/subscription chặn deploy. |
+| `dataset_resource_ok` | Generated Terraform có đủ required resource theo dataset. |
+| `intent_literal_ok` | Các literal quan trọng trong prompt/intent xuất hiện đúng trong code, ví dụ `lambda.js`, `cron(...)`, `BucketOwner`, `log/`. |
+| `terraform_validation_ok` | A4 validate/plan pass. Đây là gate cú pháp, schema provider và logic Terraform cơ bản. |
+| `rego_intent_ok` | Code pass rule trong cột `Rego intent`. Đây là benchmark gate, không phải lúc nào cũng phản ánh deployability. |
+| `deploy_ok` | Terraform apply và auto-destroy thành công trên AWS. |
+| `predeploy_strict_ok` | `terraform_validation_ok` + `dataset_resource_ok` + `rego_intent_ok`. |
+| `end_to_end_strict_ok` | `predeploy_strict_ok` + `deploy_ok`. Đây là strict benchmark nghiêm ngặt nhất. |
+| `code_predeploy_ok` | Code pass validation/resource/literal, chưa tính Rego và AWS deploy. |
+| `deployable_code_ok` | Code validate được và deploy được trên AWS, bỏ qua Rego benchmark. |
+| `adjusted_code_success_ok` | Metric thực dụng: deploy được, hoặc chỉ bị chặn bởi AWS environment/quota. |
+| `benchmark_only_rego_fail` | Rego fail nhưng code vẫn qua các gate thực dụng. Nên audit dataset/Rego trước khi tính là lỗi code. |
+| `deploy_environment_blocked` | Code qua các gate chính nhưng bị AWS account/region/quota/subscription chặn deploy. |
 
-Các `failed_dimensions` có ý nghĩa như sau:
+Các `failed_dimensions`:
 
 | Dimension | Ý nghĩa |
 | :--- | :--- |
-| `architecture` | A1 không sinh được architecture plan hợp lệ, thường là không có resource bắt buộc. |
+| `architecture` | A1 không sinh được plan hợp lệ hoặc không có resource. |
 | `engineering` | A3 không sinh được Terraform HCL dùng được. |
-| `terraform_validation` | A4 validate/plan fail do cú pháp, schema provider, logic Terraform hoặc lỗi init/timeout. |
-| `dataset_resource` | Thiếu resource bắt buộc theo dataset. |
+| `terraform_validation` | A4 validate/plan fail do syntax, schema, logic, init hoặc timeout. |
+| `dataset_resource` | Thiếu required resource theo dataset. |
 | `intent_literal` | Thiếu literal rõ ràng trong prompt/intent. |
 | `rego_intent` | Không pass Rego intent benchmark. |
-| `aws_deploy` | Terraform apply AWS fail; cần phân biệt lỗi code với lỗi môi trường/quota. |
+| `aws_deploy` | AWS apply fail. Cần phân biệt lỗi code với lỗi quota/subscription/permission. |
 
-### 4.2. Tổng quan kết quả
+## 5. Kết Quả Benchmark 174 Cases
 
-| Chỉ số | Kết quả | Ý nghĩa |
+### 5.1. Quality Gates
+
+| Gate | Kết quả | Nhận xét |
 | :--- | ---: | :--- |
-| **A1 Architecture** | **171/174 (98.3%)** | Agent kiến trúc sinh được plan có resource cho hầu hết prompt. |
-| **A3 Engineering** | **171/174 (98.3%)** | Các case đi qua A1 hầu hết sinh được Terraform HCL. |
-| **A4 Terraform validate/plan** | **151/174 (86.8%)** | Terraform qua validate/plan cục bộ trước khi deploy. |
-| **Dataset resource match** | **150/174 (86.2%)** | Resource sinh ra khớp cột `Resource`/`esource` của dataset. |
-| **Rego intent** | **99/174 (56.9%)** | Cổng benchmark theo Rego intent, đang là điểm nghẽn lớn nhất. |
-| **AWS deploy OK** | **131/174 (75.3%)** | Terraform apply/destroy thành công trên AWS. |
-| **Predeploy strict** | **91/174 (52.3%)** | A4 + Resource + Rego đều pass trước deploy. |
-| **Strict end-to-end** | **81/174 (46.6%)** | Predeploy strict + AWS deploy OK. |
-| **Code predeploy** | **141/174 (81.0%)** | Code đúng cú pháp/resource/literal, chưa tính Rego/AWS. |
-| **Deployable code** | **122/174 (70.1%)** | Code validate và deploy được trên AWS. |
-| **Adjusted code-success** | **129/174 (74.1%)** | Thành công thực dụng, bỏ qua benchmark-only Rego và AWS env/quota block. |
+| A1 Architecture | 171/174 (98.3%) | 3 case chỉ sinh data source hoặc thiếu resource. |
+| A3 Engineering | 171/174 (98.3%) | Không có lỗi engineering riêng ngoài các case A1 fail. |
+| A4 Terraform validate/plan | 151/174 (86.8%) | Còn 20 case validation fail. |
+| Dataset resource match | 150/174 (86.2%) | Còn 9 case thiếu required resource. |
+| Rego intent | 99/174 (56.9%) | Cổng có tỷ lệ fail cao nhất. |
+| AWS deploy OK | 131/174 (75.3%) | 28 case deploy fail, trong đó có 7 case do môi trường AWS. |
+| Predeploy strict | 91/174 (52.3%) | Strict trước deploy. |
+| Strict end-to-end | 81/174 (46.6%) | Strict benchmark đầy đủ. |
+| Code predeploy | 141/174 (81.0%) | Đánh giá code trước Rego/AWS. |
+| Deployable code | 122/174 (70.1%) | Code chạy được trên AWS. |
+| Adjusted code-success | 129/174 (74.1%) | Metric nên dùng để đánh giá chất lượng code thực dụng. |
 
-### 4.3. Failed dimensions
+### 5.2. Failed Dimensions
 
-Các chiều lỗi được ghi trong `final_eval.failed_dimensions`:
-
-| Failed dimension | Số lượng | Tỷ lệ |
+| Failed dimension | Số case | Tỷ lệ |
 | :--- | ---: | ---: |
 | `rego_intent` | 60 | 34.5% |
 | `aws_deploy` | 28 | 16.1% |
@@ -156,45 +208,105 @@ Các chiều lỗi được ghi trong `final_eval.failed_dimensions`:
 | `intent_literal` | 3 | 1.7% |
 | `architecture` | 3 | 1.7% |
 
-### 4.4. Phân loại theo hướng xử lý
+### 5.3. Phân Nhóm Lỗi Theo Hướng Xử Lý
 
-Kết quả analyzer cho thấy không nên chỉ đọc `Strict end-to-end`, vì strict score trộn lỗi code thật với lỗi benchmark quá chặt và lỗi môi trường AWS:
+| Nhóm | Số case | Ý nghĩa |
+| :--- | ---: | :--- |
+| Code/pipeline cần sửa | 45 | Các case fail do architecture, validation, resource coverage, literal intent hoặc deployability. |
+| Benchmark-only Rego | 41 | Code qua các gate thực dụng nhưng fail Rego do rule quá cụ thể hoặc conflict với deployability. |
+| AWS environment/quota | 7 | Bị chặn bởi subscription, quota, permission hoặc giới hạn region/account. |
+| Manual semantic review | 5 | Cần đọc prompt, generated HCL và Rego để kết luận đúng/sai. |
 
-* **Code/pipeline cần sửa:** 45 cases theo `adjusted_code_success_ok = false`.
-* **Benchmark-only Rego:** 41 cases. Các case này có thể validate/deploy được nhưng Rego hoặc dataset kiểm tra quá cụ thể, ví dụ hard-code tên bucket, tên resource Terraform, hoặc kiểm tra biểu thức plan quá chặt.
-* **AWS environment/quota:** 7 cases. Các lỗi này do account/region/subscription/quota/permission, không nên tính là lỗi sinh Terraform nếu prompt không yêu cầu đúng service/region bị chặn.
+## 6. Phân Tích Các Nhóm Lỗi Chính
 
-### 4.5. Các nhóm lỗi nổi bật
+### 6.1. Rego Intent Là Điểm Nghẽn Benchmark
 
-> [!WARNING]
-> * **Rego intent là điểm nghẽn benchmark lớn nhất:** 60/174 case fail Rego, trong đó analyzer phân loại 37 case thuộc nhóm cần audit dataset/Rego và 5 case cần review semantic thủ công.
-> * **A4 validation còn 20 case fail:** gồm 16 lỗi `SYNTAX`, 2 lỗi `INFRA`, và 2 lỗi `LOGIC`. Đây là nhóm nên ưu tiên bằng deterministic repair hoặc prompt/schema guard cho AWS Provider ~> 5.0.
-> * **Deployability còn 12 case lỗi code chính:** các lỗi thường gặp gồm Route53 query logging region, S3 bucket naming, ElastiCache user id, Lambda handler/package, S3 notification permission/dependency, API Gateway integration, CodeBuild GitHub auth, IAM SSH public key.
-> * **Dataset intent/resource mismatch còn 9 case:** thiếu các resource như `aws_s3_bucket`, `aws_dynamodb_table`, `aws_dynamodb_table_replica`, `aws_elasticache_user`, `aws_iam_policy`, `aws_iam_role_policy_attachment`.
-> * **AWS environment-only có 7 case:** Firehose subscription, S3 accelerate permission, Lightsail quota, và NLB quota/operation limit.
+`rego_intent` fail 60 cases. Trong đó, analyzer phân loại 37 cases vào nhóm `benchmark_dataset_rego_audit`. Các lỗi phổ biến:
 
-### 4.6. Hàng đợi tối ưu tiếp theo
+- Rego hard-code tên Terraform resource hoặc tên cloud resource.
+- Rego kiểm tra exact constant quá chặt.
+- Rego dùng biểu thức plan/configuration không ổn định.
+- Dataset/Rego yêu cầu tên cố định như S3 bucket name, trong khi deploy thực tế cần tên unique toàn cục.
 
-* **A1 Architecture:** cases 78, 161, 162 cần template/guard khi LLM chỉ sinh data source mà không có resource.
-* **A1/A3 Intent coverage:** cases 28, 29, 50, 74, 76, 80, 114, 116, 122 cần giữ đúng resource/literal trong prompt và intent.
-* **A4 Validation:** cases 18, 27, 31, 32, 42, 45, 61, 68, 82, 84, 115, 120, 126, 130, 132, 134, 139, 141, 158, 166 cần schema/logic repair.
-* **A5 Deployability:** cases 0, 21, 47, 56, 60, 64, 79, 101, 117, 121, 165, 167 cần deterministic deploy fixes.
-* **Dataset/Rego audit:** 37 cases được analyzer gán owner `benchmark_dataset_rego_audit`, cần tách khỏi lỗi sinh code khi báo cáo chất lượng thực dụng.
+Khuyến nghị: không dùng `Strict end-to-end` làm metric duy nhất. Khi báo cáo chất lượng code sinh ra, nên đi kèm `Deployable code` và `Adjusted code-success`.
 
----
+### 6.2. A4 Validation Còn 20 Cases Fail
 
-## 5. KẾT LUẬN & ĐỊNH HƯỚNG PHÁT TRIỂN (CONCLUSION & FUTURE WORK)
+Các lỗi A4 gồm:
 
-### 5.1. Kết luận
-Hệ thống Multi-Agent sử dụng LangGraph kết hợp vòng lặp sửa lỗi tự động đạt **129/174 (74.1%) Adjusted code-success** và **122/174 (70.1%) Deployable code** trên benchmark filtered 174 cases. Cơ chế cô lập lỗi của Validation Agent (A4) giúp giữ tỷ lệ validate/plan ở **151/174 (86.8%)**. Tuy nhiên, rào cản lớn nhất hiện tại nằm ở độ lệch pha giữa **kịch bản kiểm thử tĩnh (Rego)**, **độ bao phủ intent/resource**, và **điều kiện triển khai thực tế trên AWS**.
+- 16 case `SYNTAX`
+- 2 case `INFRA`
+- 2 case `LOGIC`
 
-### 5.2. Hướng phát triển trong tương lai
+Nhóm này nên ưu tiên vì có tác động trực tiếp đến khả năng deploy. Các case cần xử lý: 18, 27, 31, 32, 42, 45, 61, 68, 82, 84, 115, 120, 126, 130, 132, 134, 139, 141, 158, 166.
 
-1. **Về phía Pipeline & Agents:**
-   * **Nâng cấp A4 Validation:** Bổ sung các bộ lọc regex tự động sửa các lỗi thuộc tính cũ của AWS Provider 5.0 (ví dụ tự động bọc cấu hình Splunk đúng chuẩn).
-   * **Tối ưu hóa Prompt của A3:** Thêm chỉ thị bắt buộc tạo mật khẩu ngẫu nhiên an toàn có độ dài tối thiểu 16 ký tự để tránh bị AWS API từ chối.
-   * **Tối ưu hóa hiệu năng gọi LLM:** Cấu hình cơ chế tự động thử lại (retry) khi gặp lỗi Timeout 120s từ phía nhà cung cấp mô hình.
+### 6.3. Deployability Còn 12 Cases Lỗi Code Chính
 
-2. **Về phía Bộ dữ liệu Benchmark (Dataset & Rego):**
-   * **Audit lại quy tắc Rego:** Chuyển đổi các bài test Rego từ dạng so khớp chuỗi hằng số cứng nhắc sang kiểm tra cấu trúc/thuộc tính tương đối (như kiểm tra xem giá trị có chứa tiền tố cụ thể thay vì khớp 100% chuỗi tĩnh).
-   * **Khắc phục xung đột Deployability:** Cho phép Rego chấp nhận các chuỗi ngẫu nhiên được sinh ra bởi `random_id` khi kiểm tra tên tài nguyên S3 Bucket hoặc Route53 Domain.
+Các lỗi deployability thường gặp:
+
+- Route53 query logging yêu cầu CloudWatch log group ở `us-east-1`.
+- S3 bucket name không hợp lệ hoặc bị trùng global namespace.
+- ElastiCache user id/user name không đúng constraint.
+- Lambda handler/package không khớp.
+- S3 notification thiếu destination policy hoặc dependency.
+- API Gateway integration/method mapping sai.
+- CodeBuild GitHub auth/source config chưa deploy được.
+- IAM SSH public key không hợp lệ.
+
+Các case ưu tiên: 0, 21, 47, 56, 60, 64, 79, 101, 117, 121, 165, 167.
+
+### 6.4. Intent Coverage Và Dataset Resource Match
+
+`dataset_resource` fail 9 cases, thường do thiếu resource bắt buộc như:
+
+- `aws_s3_bucket`
+- `aws_dynamodb_table`
+- `aws_dynamodb_table_replica`
+- `aws_elasticache_user`
+- `aws_iam_policy`
+- `aws_iam_role_policy_attachment`
+
+Các case ưu tiên: 28, 29, 50, 74, 76, 80, 114, 116, 122.
+
+### 6.5. AWS Environment/Quota Không Nên Tính Là Lỗi Code
+
+Có 7 cases bị chặn bởi AWS environment/quota:
+
+- Firehose subscription/service availability.
+- S3 accelerate permission.
+- Lightsail quota.
+- NLB operation/quota limit.
+
+Những case này nên được ghi nhận riêng bằng `deploy_environment_blocked`, không nên tính trực tiếp là lỗi generated Terraform nếu prompt không yêu cầu đúng môi trường bị chặn.
+
+## 7. Roadmap Cải Thiện
+
+### Ưu Tiên 1: Giảm Lỗi A4 Validation
+
+- Bổ sung deterministic repair cho AWS Provider schema phổ biến.
+- Tăng prompt guard cho các resource có schema phức tạp như Firehose, S3 inventory, DynamoDB replica, ElastiCache, CodeBuild.
+- Tách lỗi `INFRA` như timeout/init failure khỏi lỗi Terraform syntax để xử lý đúng hướng.
+
+### Ưu Tiên 2: Cải Thiện Deployability
+
+- Thêm deploy repair cho Route53 query logging region.
+- Chuẩn hóa S3 naming strategy: dùng `bucket_prefix` hoặc random suffix khi cần deploy thật.
+- Sửa các pattern deploy fail lặp lại: Lambda package/handler, S3 notification dependency, API Gateway mapping, IAM SSH public key.
+
+### Ưu Tiên 3: Tăng Intent Coverage
+
+- Bổ sung A1 deterministic templates cho cases 78, 161, 162 khi LLM chỉ sinh data source.
+- Tăng guard để A1/A3 giữ literal quan trọng trong prompt.
+- Ưu tiên các resource bị thiếu theo dataset: S3, DynamoDB, ElastiCache user, IAM policy/attachment.
+
+### Ưu Tiên 4: Audit Dataset/Rego
+
+- Chuyển Rego từ exact-name matching sang structural/semantic matching khi có thể.
+- Tránh yêu cầu fixed S3 bucket name nếu mục tiêu là deploy thật.
+- Tách benchmark-only Rego fail khỏi code failure trong báo cáo kết quả.
+
+## 8. Kết Luận
+
+Hệ thống đã đạt mức khả dụng tốt cho bài toán sinh Terraform deployable: **122/174 (70.1%) Deployable code** và **129/174 (74.1%) Adjusted code-success**. Pipeline có nền tảng ổn định ở A1/A3, validate rate khá cao ở A4, và đã deploy thành công 131 cases trên AWS.
+
+Để nâng chất lượng lên mức cao hơn, trọng tâm tiếp theo nên là: giảm 20 lỗi A4 validation, xử lý 12 lỗi deployability có tính lặp lại, tăng intent/resource coverage, và audit lại các Rego rule quá chặt. Khi trình bày kết quả, nên báo cáo song song `Strict end-to-end`, `Deployable code`, và `Adjusted code-success` để phản ánh đầy đủ cả benchmark score lẫn giá trị thực tế của generated Terraform.
