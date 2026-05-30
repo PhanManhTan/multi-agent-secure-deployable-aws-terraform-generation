@@ -36,7 +36,7 @@ Cấu trúc thư mục dự án được tổ chức như sau:
 | Thư mục / File | Chức năng & Ý nghĩa |
 | :--- | :--- |
 | **`main.py`** | Entrypoint chính để chạy pipeline với một prompt đơn lẻ hoặc chạy hàng loạt (batch) ở chế độ CLI thông thường. |
-| **`test_pipeline.py`** | Script chạy kiểm thử tự động (benchmark) toàn bộ hoặc một phần các test case từ dataset CSV, tích hợp cổng chấm điểm Rego và AWS Deploy. |
+| **`benchmark_pipeline.py`** | Script chạy kiểm thử tự động (benchmark) toàn bộ hoặc một phần các test case từ dataset CSV, tích hợp cổng chấm điểm Rego và AWS Deploy. |
 | **`graph.py`** | Định nghĩa cấu trúc đồ thị luồng đi của các Agent (LangGraph), các cạnh có điều kiện và cơ chế chuyển đổi trạng thái giữa các Agent. |
 | **`agents/`** | Thư mục chứa logic nghiệp vụ và lời gọi LLM của 5 Agents chuyên biệt. |
 | **`core/`** | Chứa nhân hệ thống bao gồm: gọi LLM, định nghĩa trạng thái đồ thị (State), bộ phân tích kết quả JSON và wrapper bọc các lệnh CLI Terraform. |
@@ -45,22 +45,22 @@ Cấu trúc thư mục dự án được tổ chức như sau:
 
 ### Chi tiết các File trong thư mục `agents/`
 
-1. **[architecture.py](file:///home/manhtan/NT114/29-05/multi-agent-secure-deployable-aws-terraform-generation/agents/architecture.py)**: 
+1. **architecture.py**: 
    * **Nhiệm vụ:** Nhận prompt yêu cầu của người dùng, phân tích và lên danh sách các tài nguyên AWS cần thiết (`infrastructure_plan`).
-2. **[security.py](file:///home/manhtan/NT114/29-05/multi-agent-secure-deployable-aws-terraform-generation/agents/security.py)**:
+2. **security.py**:
    * **Nhiệm vụ:** Nhận bản thiết kế kiến trúc từ A1, đối chiếu với bộ quy tắc Checkov để gán các nhãn bảo mật (CKV Rule IDs) cần tuân thủ cho từng tài nguyên.
-3. **[engineering.py](file:///home/manhtan/NT114/29-05/multi-agent-secure-deployable-aws-terraform-generation/agents/engineering.py)**:
+3. **engineering.py**:
    * **Nhiệm vụ:** Nhận bản thiết kế và các yêu cầu bảo mật, tiến hành viết mã Terraform HCL thực tế (`main.tf`, `variables.tf`,...).
-4. **[validation.py](file:///home/manhtan/NT114/29-05/multi-agent-secure-deployable-aws-terraform-generation/agents/validation.py)**:
+4. **validation.py**:
    * **Nhiệm vụ:** Chạy cục bộ `terraform validate`, `terraform plan` và quét bảo mật bằng `checkov`. Nếu phát hiện lỗi, nó sẽ trích xuất thông tin lỗi chi tiết, tạo chỉ dẫn sửa đổi (`fix_feedback`) và định tuyến quay lại A1, A2 hoặc A3 để AI tự động sửa.
-5. **[deployment.py](file:///home/manhtan/NT114/29-05/multi-agent-secure-deployable-aws-terraform-generation/agents/deployment.py)**:
+5. **deployment.py**:
    * **Nhiệm vụ:** Thực hiện triển khai hạ tầng thực tế lên AWS thông qua `terraform apply`. Nếu apply lỗi, nó sẽ định tuyến quay lại bước sửa mã; nếu thành công, nó sẽ tiến hành hủy tài nguyên (`terraform destroy`) để dọn dẹp hệ thống.
 
 ### Chi tiết các File trong thư mục `core/`
 
-* **[state.py](file:///home/manhtan/NT114/29-05/multi-agent-secure-deployable-aws-terraform-generation/core/state.py)**: Định nghĩa cấu trúc `AgentState` lưu trữ toàn bộ trạng thái chạy của đồ thị (các tham số cấu hình, lịch sử lỗi, số lần retry, mã code sinh ra).
-* **[llm.py](file:///home/manhtan/NT114/29-05/multi-agent-secure-deployable-aws-terraform-generation/core/llm.py)**: Quản lý kết nối tới API của mô hình ngôn ngữ lớn (NVIDIA NIM hoặc DeepSeek).
-* **[terraform.py](file:///home/manhtan/NT114/29-05/multi-agent-secure-deployable-aws-terraform-generation/core/terraform.py)**: Bọc các lệnh thực thi CLI của Terraform (`init`, `plan`, `apply`, `destroy`) và tích hợp lệnh chạy kiểm tra chính sách nghiệp vụ bằng Open Policy Agent (OPA) qua file `.rego`.
+* **state.py**: Định nghĩa cấu trúc `AgentState` lưu trữ toàn bộ trạng thái chạy của đồ thị (các tham số cấu hình, lịch sử lỗi, số lần retry, mã code sinh ra).
+* **llm.py**: Quản lý kết nối tới API của mô hình ngôn ngữ lớn (NVIDIA NIM hoặc DeepSeek).
+* **terraform.py**: Bọc các lệnh thực thi CLI của Terraform (`init`, `plan`, `apply`, `destroy`) và tích hợp lệnh chạy kiểm tra chính sách nghiệp vụ bằng Open Policy Agent (OPA) qua file `.rego`.
 
 ---
 
@@ -77,7 +77,7 @@ python main.py "Create an S3 bucket with versioning and server-side encryption" 
 ### 3.2. Chạy thử nghiệm trên bộ dữ liệu (Dataset Benchmark)
 Chạy toàn bộ đường ống kiểm thử tự động trên bộ dữ liệu filtered 174 cases (`data-filtered.csv`) sử dụng 4 luồng song song để tăng tốc độ:
 ```bash
-python test_pipeline.py --csv dataset/data-filtered.csv --cases 0-173 --workers 4 --out reviews/pipeline_results_filtered_full.json
+python benchmark_pipeline.py --csv dataset/data-filtered.csv --cases 0-173 --workers 4 --out reviews/pipeline_results_filtered_full.json
 ```
 *Kết quả chạy sẽ được lưu mặc định tại file `reviews/pipeline_results.json`.*
 

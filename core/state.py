@@ -41,5 +41,5 @@ class AgentState(TypedDict):
     # Audit log
     routing_log: list
 
-    # Per-run working directory — set by test_pipeline, used by A4/A5 for structured dirs
+    # Per-run working directory — set by benchmark_pipeline, used by A4/A5 for structured dirs
     run_dir: str

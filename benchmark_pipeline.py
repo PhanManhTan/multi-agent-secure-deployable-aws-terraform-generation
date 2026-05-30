@@ -1,15 +1,15 @@
-"""Test script — chạy full pipeline A1→A2→A3→A4→Rego→A5 trên data-test.csv.
+"""Benchmark runner — chạy pipeline A1→A2→A3→A4→Rego→A5 trên dataset CSV.
 
 Chạy:
-    uv run python3 test_pipeline.py
-    uv run python3 test_pipeline.py --limit 5
-    uv run python3 test_pipeline.py --cases 0 3 7-10
-    uv run python3 test_pipeline.py --no-secu            # bỏ qua A2, security_ckv_ids = {}
-    uv run python3 test_pipeline.py --no-rego            # bỏ qua Rego intent
-    uv run python3 test_pipeline.py --no-deploy          # dừng sau A4
-    uv run python3 test_pipeline.py --no-destroy         # giữ lại resources sau apply
-    uv run python3 test_pipeline.py --workers 3          # chạy 3 row song song
-    uv run python3 test_pipeline.py --out reviews/pipeline_results.json
+    uv run python3 benchmark_pipeline.py
+    uv run python3 benchmark_pipeline.py --limit 5
+    uv run python3 benchmark_pipeline.py --cases 0 3 7-10
+    uv run python3 benchmark_pipeline.py --no-secu            # bỏ qua A2, security_ckv_ids = {}
+    uv run python3 benchmark_pipeline.py --no-rego            # bỏ qua Rego intent
+    uv run python3 benchmark_pipeline.py --no-deploy          # dừng sau A4
+    uv run python3 benchmark_pipeline.py --no-destroy         # giữ lại resources sau apply
+    uv run python3 benchmark_pipeline.py --workers 3          # chạy 3 case song song
+    uv run python3 benchmark_pipeline.py --out reviews/pipeline_results.json
 """
 import argparse
 import csv

@@ -1,21 +1,21 @@
 # Multi-Agent Terraform Generation
 
-Multi-agent pipeline sinh Terraform IaC tu mo ta ngon ngu tu nhien, dung LangGraph + NVIDIA NIM hoac DeepSeek.
+Multi-agent pipeline sinh Terraform IaC từ mô tả ngôn ngữ tự nhiên, dùng LangGraph + NVIDIA NIM hoặc DeepSeek.
 
-## Yeu cau chung
+## Yêu Cầu Chung
 
 - Python 3.11+
 - Git
 - Terraform CLI
 - Checkov
-- AWS CLI v2 va AWS credentials neu chay buoc deploy/apply that
-- API key cho NVIDIA NIM hoac DeepSeek
+- AWS CLI v2 và AWS credentials nếu chạy bước deploy/apply thật
+- API key cho NVIDIA NIM hoặc DeepSeek
 
-## Cai dat tren Ubuntu
+## Cài Đặt Trên Ubuntu
 
-Vi du ben duoi phu hop voi Ubuntu 22.04/24.04.
+Ví dụ bên dưới phù hợp với Ubuntu 22.04/24.04.
 
-**1. Cai system packages**
+**1. Cài system packages**
 
 ```bash
 sudo apt update
@@ -23,7 +23,7 @@ sudo apt install -y git curl unzip gnupg software-properties-common
 sudo apt install -y python3.11 python3.11-venv python3.11-dev
 ```
 
-Neu Ubuntu cua ban khong co goi `python3.11`, hay cai Python 3.11 tu deadsnakes PPA hoac dung phien ban Ubuntu moi hon.
+Nếu Ubuntu của bạn không có gói `python3.11`, hãy cài Python 3.11 từ deadsnakes PPA hoặc dùng phiên bản Ubuntu mới hơn.
 
 **2. Clone repo**
 
@@ -32,16 +32,30 @@ git clone https://github.com/noseyug/multi-agent-secure-deployable-aws-terraform
 cd multi-agent-secure-deployable-aws-terraform-generation
 ```
 
-**3. Tao virtual environment va cai Python dependencies**
+**3. Tạo `.venv` trước**
+
+Tạo và activate `.venv` ngay sau khi clone repo. Tất cả lệnh Python trong phần sau nên chạy bên trong environment này.
 
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
+```
+
+Kiểm tra Python đang trỏ vào `.venv`:
+
+```bash
+which python
+python --version
+```
+
+**4. Cài Python dependencies**
+
+```bash
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-**4. Cai Terraform**
+**5. Cài Terraform**
 
 ```bash
 wget -O- https://apt.releases.hashicorp.com/gpg \
@@ -55,7 +69,7 @@ sudo apt update
 sudo apt install -y terraform
 ```
 
-**5. Cai OPA neu muon chay stage Rego intent**
+**6. Cài OPA nếu muốn chạy stage Rego intent**
 
 ```bash
 curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
@@ -63,7 +77,7 @@ chmod +x opa
 sudo mv opa /usr/local/bin/opa
 ```
 
-**6. Cai AWS CLI v2**
+**7. Cài AWS CLI v2**
 
 ```bash
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -72,20 +86,20 @@ sudo ./aws/install
 rm -rf aws awscliv2.zip
 ```
 
-**7. Tao file cau hinh**
+**8. Tạo file cấu hình**
 
 ```bash
 cp .env.example .env
 ```
 
-Mo `.env` va dien API key:
+Mở `.env` và điền API key:
 
 ```env
 LLM_PROVIDER=nvidia
 NVIDIA_API_KEY=nvapi-...
 ```
 
-Hoac dung DeepSeek:
+Hoặc dùng DeepSeek:
 
 ```env
 LLM_PROVIDER=deepseek
@@ -93,7 +107,7 @@ DEEPSEEK_API_KEY=sk-...
 DEEPSEEK_MODEL=deepseek-chat
 ```
 
-**8. Kiem tra toolchain**
+**9. Kiểm tra toolchain**
 
 ```bash
 source .venv/bin/activate
@@ -103,14 +117,13 @@ checkov --version
 aws --version
 ```
 
-Tat ca cac lenh tren can chay duoc truoc khi chay pipeline. Rieng `opa version`
-chi bat buoc neu ban muon stage Rego intent chay that:
+Tất cả các lệnh trên cần chạy được trước khi chạy pipeline. Riêng `opa version` chỉ bắt buộc nếu bạn muốn stage Rego intent chạy thật:
 
 ```bash
 opa version
 ```
 
-## Cai dat tren Windows
+## Cài Đặt Trên Windows
 
 **1. Clone repo**
 
@@ -119,33 +132,33 @@ git clone https://github.com/noseyug/multi-agent-secure-deployable-aws-terraform
 cd multi-agent-secure-deployable-aws-terraform-generation
 ```
 
-**2. Chay setup**
+**2. Chạy setup**
 
 ```bat
 setup.bat
 ```
 
-Hoac dung PowerShell:
+Hoặc dùng PowerShell:
 
 ```powershell
 .\setup.ps1
 ```
 
-Script Windows tu dong:
+Script Windows tự động:
 
-- Tao virtual environment `.venv`
-- Cai Python dependencies
-- Tai `terraform.exe` vao `bin\`
-- Tai va cai AWS CLI v2 vao `bin\awscli\` can quyen Administrator
-- Tao file `.env` tu `.env.example`
+- Tạo virtual environment `.venv`
+- Cài Python dependencies
+- Tải `terraform.exe` vào `bin\`
+- Tải và cài AWS CLI v2 vào `bin\awscli\` nếu có quyền Administrator
+- Tạo file `.env` từ `.env.example`
 
-**3. Dien API keys vao `.env`**
+**3. Điền API keys vào `.env`**
 
 ```env
 NVIDIA_API_KEY=nvapi-...
 ```
 
-## Su dung
+## Sử Dụng
 
 ### Activate virtual environment
 
@@ -161,116 +174,102 @@ Windows:
 .venv\Scripts\activate
 ```
 
-### Chay mot prompt
+### Chạy một prompt
 
-`main.py` can mot prompt neu khong dung `--batch`.
+`main.py` cần một prompt nếu không dùng `--batch`.
 
 ```bash
 python main.py "Create an S3 bucket with versioning and server-side encryption"
 ```
 
-Luu Terraform HCL ra file:
+Lưu Terraform HCL ra file:
 
 ```bash
 python main.py "Create a private VPC with two subnets" --output infra.tf
 ```
 
-Destroy resources tu file Terraform da luu:
+Destroy resources từ file Terraform đã lưu:
 
 ```bash
 python main.py --destroy infra.tf
 ```
 
-### Chay test pipeline tren dataset
+### Chạy benchmark pipeline trên dataset
 
-Mac dinh `test_pipeline.py` dung `dataset/data-dev.csv` de chay nhanh. Khi can
-danh gia benchmark lon hon, truyen `--csv dataset/data-filtered.csv`.
+Mặc định `benchmark_pipeline.py` dùng `dataset/data-dev.csv` để chạy nhanh. Khi cần đánh giá benchmark lớn hơn, truyền `--csv dataset/data-filtered.csv`.
 
 ```bash
-# Chay toan bo dataset mac dinh nho
-python test_pipeline.py
+# Chạy toàn bộ dataset mặc định nhỏ
+python benchmark_pipeline.py
 
-# Chay benchmark filtered 174 cases
-python test_pipeline.py --csv dataset/data-filtered.csv --cases 0-173 --workers 4 --out reviews/pipeline_results_filtered_full.json
+# Chạy benchmark filtered 174 cases
+python benchmark_pipeline.py --csv dataset/data-filtered.csv --cases 0-173 --workers 4 --out reviews/pipeline_results_filtered_full.json
 
-# Gioi han so case
-python test_pipeline.py --limit 5
+# Giới hạn số case
+python benchmark_pipeline.py --limit 5
 
-# Chon case cu the
-python test_pipeline.py --cases 0 3 7-10
+# Chọn case cụ thể
+python benchmark_pipeline.py --cases 0 3 7-10
 
-# Chon case tren dataset khac
-python test_pipeline.py --csv dataset/data-filtered.csv --cases 50 59 81
+# Chọn case trên dataset khác
+python benchmark_pipeline.py --csv dataset/data-filtered.csv --cases 50 59 81
 
-# Bo qua A2 security
-python test_pipeline.py --no-secu
+# Bỏ qua A2 security
+python benchmark_pipeline.py --no-secu
 
-# Bo qua Rego intent
-python test_pipeline.py --no-rego
+# Bỏ qua Rego intent
+python benchmark_pipeline.py --no-rego
 
-# Dung sau A4, khong deploy len AWS
-python test_pipeline.py --no-deploy
+# Dừng sau A4, không deploy lên AWS
+python benchmark_pipeline.py --no-deploy
 
-# Giu lai resources sau apply, khong auto-destroy
-python test_pipeline.py --no-destroy
+# Giữ lại resources sau apply, không auto-destroy
+python benchmark_pipeline.py --no-destroy
 
-# Chay song song nhieu case
-python test_pipeline.py --workers 3
+# Chạy song song nhiều case
+python benchmark_pipeline.py --workers 3
 
-# Luu ket qua ra file khac
-python test_pipeline.py --out reviews/my_results.json
+# Lưu kết quả ra file khác
+python benchmark_pipeline.py --out reviews/my_results.json
 ```
 
-Ket qua mac dinh duoc luu vao `reviews/pipeline_results.json`.
+Kết quả mặc định được lưu vào `reviews/pipeline_results.json`.
 
-Phan tich nhanh ket qua benchmark:
+Phân tích nhanh kết quả benchmark:
 
 ```bash
 python dataset/analyze_results.py reviews/pipeline_results.json
 
-# Neu result duoc tao tu dataset/data-filtered.csv thi truyen cung CSV
+# Nếu result được tạo từ dataset/data-filtered.csv thì truyền cùng CSV
 python dataset/analyze_results.py reviews/pipeline_results_filtered_full.json --csv dataset/data-filtered.csv
 
-# Phan tich file benchmark 174 cases hien tai neu file co trong workspace
+# Phân tích file benchmark 174 cases hiện tại nếu file có trong workspace
 python dataset/analyze_results.py result_full_174.json --csv dataset/data-filtered.csv
 ```
 
-Kiem tra nhanh cac rule/parser/classifier noi bo truoc khi ton LLM/AWS:
+Kiểm tra nhanh các rule/parser/classifier nội bộ trước khi tốn LLM/AWS:
 
 ```bash
 python -m unittest tests/test_static_rules.py
-python -m py_compile agents/architecture.py agents/deployment.py agents/validation.py core/terraform.py test_pipeline.py dataset/analyze_results.py
+python -m py_compile agents/architecture.py agents/deployment.py agents/validation.py core/terraform.py benchmark_pipeline.py dataset/analyze_results.py
 ```
 
-Sau A4 validation pass, test pipeline se them `[data]` eval de so generated HCL
-da validate/plan duoc voi dataset:
+## Luồng Đánh Giá Benchmark
 
-- cot `Resource`/`esource`: tach required resource va helper/data source. Required
-  resource dung de tinh `dataset_resource_ok`; helper nhu `aws_iam_policy_document`,
-  `aws_availability_zones`, `archive_file` chi ghi warning/coverage rieng.
-- cot `Reference output`: tinh coverage voi Terraform mau de tham khao, nhung
-  khong block deploy vi code khac reference van co the dung.
-- cot `Intent`: duoc record vao JSON result de reviewer doc.
-  Mot so literal ro rang trong `Prompt`/`Intent` nhu `lambda.js`,
-  `custom_ttl_attribute`, `password1`, `cron(...)`, `BucketOwner`, `log/`
-  duoc kiem tra boi `intent_literal_match`. Day la check tinh, khong thay the
-  Rego/semantic review, nhung giup bat loi "dung resource nhung sai literal".
+Sau A4 validation pass, benchmark pipeline thêm `[data]` eval để so generated HCL đã validate/plan được với dataset:
 
-Stage Rego chay sau A4 validation va truoc A5 deploy. Day la stage danh gia
-intent rieng, khong phai A2 security. Stage nay lay cot `Rego intent` trong
-dataset, chay `terraform plan -out=tfplan`, `terraform show -json tfplan`, roi
-dung `opa eval` de kiem tra cac rule entrypoint pho bien nhu `valid`,
-`is_configuration_valid`, `has_valid_resources`, hoac cac rule khai bao
-`default <rule> = false`. Rego uu tien rule tong (`valid`, `allow`,
-`is_configuration_valid`, `has_valid_resources`, `valid_configuration`) truoc;
-neu khong co rule tong thi moi fallback sang rule con va record `entrypoint_type`.
+- Cột `Resource`/`esource`: tách required resource và helper/data source. Required resource dùng để tính `dataset_resource_ok`; helper như `aws_iam_policy_document`, `aws_availability_zones`, `archive_file` chỉ ghi warning/coverage riêng.
+- Cột `Reference output`: tính coverage với Terraform mẫu để tham khảo, nhưng không block deploy vì code khác reference vẫn có thể đúng.
+- Cột `Intent`: được record vào JSON result để reviewer đọc.
+- Một số literal rõ ràng trong `Prompt`/`Intent` như `lambda.js`, `custom_ttl_attribute`, `password1`, `cron(...)`, `BucketOwner`, `log/` được kiểm tra bằng `intent_literal_match`. Đây là static check, không thay thế Rego/semantic review, nhưng giúp bắt lỗi “đúng resource nhưng sai literal”.
 
-Kết quả `[data]`, `[rego]`, và `[deploy]` được record riêng. Nếu A4 validation
-pass thì pipeline vẫn chạy A5 deploy để đánh giá deployability, kể cả khi
-Resource/Rego fail. JSON result có `final_eval` để phân biệt các loại thành công
-và thất bại.
+Stage Rego chạy sau A4 validation và trước A5 deploy. Đây là stage đánh giá intent riêng, không phải A2 security. Stage này lấy cột `Rego intent` trong dataset, chạy `terraform plan -out=tfplan`, `terraform show -json tfplan`, rồi dùng `opa eval` để kiểm tra các rule entrypoint phổ biến như `valid`, `is_configuration_valid`, `has_valid_resources`, hoặc các rule khai báo `default <rule> = false`.
 
-### Ý nghĩa các thuộc tính đánh giá
+Rego ưu tiên rule tổng (`valid`, `allow`, `is_configuration_valid`, `has_valid_resources`, `valid_configuration`) trước. Nếu không có rule tổng thì mới fallback sang rule con và record `entrypoint_type`.
+
+Kết quả `[data]`, `[rego]`, và `[deploy]` được record riêng. Nếu A4 validation pass thì pipeline vẫn chạy A5 deploy để đánh giá deployability, kể cả khi Resource/Rego fail. JSON result có `final_eval` để phân biệt các loại thành công và thất bại.
+
+## Ý Nghĩa Các Thuộc Tính Đánh Giá
 
 Các thuộc tính quan trọng trong `final_eval`:
 
@@ -301,18 +300,17 @@ Các `failed_dimensions` thường gặp:
 | `rego_intent` | Không pass Rego intent benchmark. |
 | `aws_deploy` | Terraform apply AWS fail; cần phân biệt lỗi code với lỗi môi trường/quota. |
 
-Khi đánh giá chất lượng code sinh ra, ưu tiên đọc `Code predeploy`,
-`Deployable code` và `Adjusted code-success`. `Strict end-to-end` vẫn hữu ích
-cho benchmark, nhưng có thể fail vì Rego dataset quá chặt hoặc AWS account bị
-giới hạn, không nhất thiết là lỗi generated Terraform.
+Khi đánh giá chất lượng code sinh ra, ưu tiên đọc `Code predeploy`, `Deployable code` và `Adjusted code-success`. `Strict end-to-end` vẫn hữu ích cho benchmark, nhưng có thể fail vì Rego dataset quá chặt hoặc AWS account bị giới hạn, không nhất thiết là lỗi generated Terraform.
 
-A2 security van chi dung CKV/Checkov nhu cu.
+A2 security vẫn chỉ dùng CKV/Checkov như cũ.
 
-### Kết quả benchmark hiện tại
+## Kết Quả Benchmark Hiện Tại
 
-Kết quả mới nhất trong workspace được lưu ở `result_full_174.json`, chạy trên
-`dataset/data-filtered.csv` với 174 cases. Tóm tắt từ
-`python dataset/analyze_results.py result_full_174.json --csv dataset/data-filtered.csv`:
+Kết quả mới nhất trong workspace được lưu ở `result_full_174.json`, chạy trên `dataset/data-filtered.csv` với 174 cases. Tóm tắt từ:
+
+```bash
+python dataset/analyze_results.py result_full_174.json --csv dataset/data-filtered.csv
+```
 
 | Chỉ số | Kết quả | Ghi chú |
 | --- | ---: | --- |
@@ -340,42 +338,38 @@ Các `failed_dimensions` trong `result_full_174.json`:
 Phân loại theo hướng xử lý:
 
 - Pipeline/code cần sửa: 45 case theo `adjusted_code_success_ok = false`.
-- Benchmark-only Rego: 41 case, code đã qua các gate thực dụng nhưng Rego/dataset
-  có check quá cụ thể hoặc conflict với deployability.
-- AWS environment/quota: 7 case, bị chặn bởi subscription/quota/permission của
-  account hoặc region, không nên tính là lỗi sinh Terraform.
+- Benchmark-only Rego: 41 case, code đã qua các gate thực dụng nhưng Rego/dataset có check quá cụ thể hoặc conflict với deployability.
+- AWS environment/quota: 7 case, bị chặn bởi subscription/quota/permission của account hoặc region, không nên tính là lỗi sinh Terraform.
 
 Nhóm ưu tiên tiếp theo:
 
-- A4 validation/schema repair: cases 18, 27, 31, 32, 42, 45, 61, 68, 82, 84,
-  115, 120, 126, 130, 132, 134, 139, 141, 158, 166.
-- A5 deployability repair: cases 0, 21, 47, 56, 60, 64, 79, 101, 117, 121,
-  165, 167.
+- A4 validation/schema repair: cases 18, 27, 31, 32, 42, 45, 61, 68, 82, 84, 115, 120, 126, 130, 132, 134, 139, 141, 158, 166.
+- A5 deployability repair: cases 0, 21, 47, 56, 60, 64, 79, 101, 117, 121, 165, 167.
 - A1/A3 intent coverage: cases 28, 29, 50, 74, 76, 80, 114, 116, 122.
 - A1 architecture templates: cases 78, 161, 162.
 - Dataset/Rego audit: 37 case được analyzer gán owner `benchmark_dataset_rego_audit`.
 
-Luu y: `main.py --batch` hien dang tro toi `dataset/data-dev-fast.csv`. Neu file nay khong ton tai trong repo cua ban, hay dung `test_pipeline.py` nhu tren hoac tao file dataset tuong ung.
+Lưu ý: `main.py --batch` hiện đang trỏ tới `dataset/data-dev-fast.csv`. Nếu file này không tồn tại trong repo của bạn, hãy dùng `benchmark_pipeline.py` như trên hoặc tạo file dataset tương ứng.
 
-## Bien moi truong quan trong
+## Biến Môi Trường Quan Trọng
 
-File `.env.example` co cac bien mac dinh. Cac bien thuong can sua:
+File `.env.example` có các biến mặc định. Các biến thường cần sửa:
 
-- `LLM_PROVIDER`: `nvidia` hoac `deepseek`
-- `NVIDIA_API_KEY`: API key khi dung NVIDIA NIM
+- `LLM_PROVIDER`: `nvidia` hoặc `deepseek`
+- `NVIDIA_API_KEY`: API key khi dùng NVIDIA NIM
 - `NVIDIA_MODEL`: model NVIDIA NIM
-- `DEEPSEEK_API_KEY`: API key khi dung DeepSeek
+- `DEEPSEEK_API_KEY`: API key khi dùng DeepSeek
 - `DEEPSEEK_MODEL`: model DeepSeek
 - `TF_PLAN_TIMEOUT`: timeout cho `terraform plan`
-- `CHECKOV_BIN`: duong dan toi Checkov neu `checkov` khong nam trong PATH
+- `CHECKOV_BIN`: đường dẫn tới Checkov nếu `checkov` không nằm trong PATH
 
-Neu chay deploy/apply that len AWS, can cau hinh AWS credentials truoc:
+Nếu chạy deploy/apply thật lên AWS, cần cấu hình AWS credentials trước:
 
 ```bash
 aws configure
 ```
 
-Hoac export bien moi truong:
+Hoặc export biến môi trường:
 
 ```bash
 export AWS_ACCESS_KEY_ID=...
@@ -383,12 +377,12 @@ export AWS_SECRET_ACCESS_KEY=...
 export AWS_DEFAULT_REGION=us-east-1
 ```
 
-## Cau truc
+## Cấu Trúc
 
 ```text
 agents/      # 5 agents: architecture, security, engineering, validation, deployment
 core/        # LLM, state, terraform wrapper, parsers
-prompts/     # System prompts cho tung agent
+prompts/     # System prompts cho từng agent
 graph.py     # LangGraph pipeline
 main.py      # Entry point
 ```

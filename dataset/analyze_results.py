@@ -577,7 +577,7 @@ def main() -> int:
     if missing_literal_gate:
         print(
             "- Note: this result file does not contain intent_literal_match; rerun "
-            "test_pipeline.py to include the newer literal-intent gate."
+            "benchmark_pipeline.py to include the newer literal-intent gate."
         )
 
     print("\nCác cổng đánh giá")
@@ -730,7 +730,7 @@ def main() -> int:
         if pipeline_rows:
             print(
                 "- targeted pipeline rerun: "
-                f"python test_pipeline.py --csv {args.csv} "
+                f"python benchmark_pipeline.py --csv {args.csv} "
                 f"--cases {' '.join(map(str, pipeline_rows))} --workers 4"
             )
         if audit_rows:

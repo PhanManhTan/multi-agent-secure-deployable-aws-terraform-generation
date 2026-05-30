@@ -8,7 +8,7 @@ from agents.deployment import _deterministic_deploy_fix
 from agents.validation import _deterministic_schema_fix
 from core.terraform import _STUB_CONTENT, write_terraform_dir
 from dataset.analyze_results import _final_flag_rows, _issue_owner, _primary_issue
-from test_pipeline import _intent_literal_eval, _row_code_success_flags
+from benchmark_pipeline import _intent_literal_eval, _row_code_success_flags
 
 
 class StaticRuleTests(unittest.TestCase):
