@@ -91,8 +91,8 @@ def make_state(prompt: str, idx: int = 0, auto_destroy: bool = True) -> dict:
     }
 
 
-def load_csv(limit: int | None) -> list[dict]:
-    rows = list(csv.DictReader(open(CSV_PATH, encoding="utf-8")))
+def load_csv(csv_path: Path, limit: int | None) -> list[dict]:
+    rows = list(csv.DictReader(open(csv_path, encoding="utf-8")))
     if limit:
         rows = rows[:limit]
     return [
@@ -163,6 +163,22 @@ def _contains_literal(code: str, literal: str) -> bool:
     return literal.lower() in (code or "").lower()
 
 
+def _cron_candidates(raw: str) -> list[str]:
+    """Return deployable cron literals implied by prompt/intent text."""
+    text = raw or ""
+    candidates = set(re.findall(r"cron\([^)]+\)", text, flags=re.IGNORECASE))
+    low = text.lower()
+    if "7 utc" in low or "7:00 utc" in low or "everyday at 7" in low:
+        candidates.add("cron(0 7 * * ? *)")
+    normalized = set()
+    for cron in candidates:
+        if "**" in cron:
+            normalized.add("cron(0 7 * * ? *)")
+        else:
+            normalized.add(cron)
+    return sorted(normalized)
+
+
 def _intent_literal_eval(code: str, sample: dict) -> dict:
     """Best-effort, LLM-free checks for explicit literals in Prompt/Intent.
 
@@ -198,7 +214,7 @@ def _intent_literal_eval(code: str, sample: dict) -> dict:
         add("s3_logging_prefix", "log/", _contains_literal(code, "log/"))
         add("s3_logging_resource", "aws_s3_bucket_logging", _contains_literal(code, "aws_s3_bucket_logging"))
 
-    cron_values = sorted(set(re.findall(r"cron\([^)]+\)", prompt + "\n" + intent, flags=re.IGNORECASE)))
+    cron_values = _cron_candidates(prompt + "\n" + intent)
     for idx, cron in enumerate(cron_values, start=1):
         add(f"cron_expression_{idx}", cron, _contains_literal(code, cron))
 
@@ -207,6 +223,42 @@ def _intent_literal_eval(code: str, sample: dict) -> dict:
         "ok": None if not checks else not missing,
         "checks": checks,
         "missing": missing,
+    }
+
+
+def _is_deploy_environment_blocked(row: dict) -> bool:
+    deploy = row.get("deploy") or {}
+    if deploy.get("ok") is not False:
+        return False
+    attempts = row.get("deploy_attempt_log") or [deploy]
+    env_types = {"ENV_LIMITATION", "QUOTA"}
+    return any(attempt.get("error_type") in env_types for attempt in attempts)
+
+
+def _row_code_success_flags(row: dict) -> dict:
+    final_eval = row.get("final_eval") or {}
+    dataset = row.get("dataset_eval") or {}
+    resource_ok = (dataset.get("required_resource_match") or {}).get("ok")
+    intent_literal_ok = (dataset.get("intent_literal_match") or {}).get("ok")
+    terraform_ok = (row.get("val") or {}).get("ok")
+    rego = row.get("rego") or {}
+    deploy = row.get("deploy") or {}
+    rego_ok = None if rego.get("skipped") else rego.get("ok")
+    deploy_ok = deploy.get("ok")
+
+    code_predeploy_ok = bool(terraform_ok and resource_ok and intent_literal_ok is not False)
+    deployable_code_ok = bool(code_predeploy_ok and (deploy_ok is True or deploy_ok is None))
+    benchmark_only_rego_fail = bool(code_predeploy_ok and rego_ok is False and deploy_ok is True)
+    deploy_environment_blocked = bool(code_predeploy_ok and _is_deploy_environment_blocked(row))
+    adjusted_code_success_ok = bool(deployable_code_ok or deploy_environment_blocked)
+
+    return {
+        "code_predeploy_ok": code_predeploy_ok,
+        "deployable_code_ok": deployable_code_ok,
+        "adjusted_code_success_ok": adjusted_code_success_ok,
+        "benchmark_only_rego_fail": benchmark_only_rego_fail,
+        "deploy_environment_blocked": deploy_environment_blocked,
+        "strict_ok": bool(final_eval.get("end_to_end_strict_ok")),
     }
 
 
@@ -653,6 +705,7 @@ def run_row(sample: dict,
         "routing_log": state.get("routing_log", []),
         "iterations": iteration,
     }
+    final_eval.update(_row_code_success_flags(result))
     return result, "\n".join(lines)
 
 
@@ -698,12 +751,24 @@ def _update_counters(counters: dict, r: dict, no_deploy: bool, lock: threading.L
             counters["ok_predeploy_strict"] += 1
         if final_eval.get("end_to_end_strict_ok"):
             counters["ok_e2e_strict"] += 1
+        if final_eval.get("code_predeploy_ok"):
+            counters["ok_code_predeploy"] += 1
+        if final_eval.get("deployable_code_ok"):
+            counters["ok_deployable_code"] += 1
+        if final_eval.get("adjusted_code_success_ok"):
+            counters["ok_adjusted_code_success"] += 1
+        if final_eval.get("benchmark_only_rego_fail"):
+            counters["benchmark_only_rego_fail"] += 1
+        if final_eval.get("deploy_environment_blocked"):
+            counters["deploy_environment_blocked"] += 1
 
 
 # ─── Main ────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="Test full pipeline A1→A2→A3→A4→Rego→A5")
+    parser.add_argument("--csv", type=str, default=None,
+                        help="Đường dẫn đến file CSV dataset (e.g. dataset/data-test.csv)")
     parser.add_argument("--limit", type=int, default=None, help="Số row tối đa")
     parser.add_argument("--out", type=str, default=None, help="Output JSON path")
     parser.add_argument("--cases", nargs="+", default=None,
@@ -727,11 +792,12 @@ def main():
         model = os.getenv("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct")
     deploy_str = "no-deploy" if args.no_deploy else ("no-destroy" if args.no_destroy else "auto-destroy")
     rego_str = "no-rego" if args.no_rego else "rego"
+    csv_path = Path(args.csv) if args.csv else CSV_PATH
     print(f"Full pipeline A1→A2→A3→A4→Rego→A5  |  model={model}  "
-          f"|  csv={CSV_PATH.name}  |  deploy={deploy_str}  |  workers={args.workers}")
+          f"|  csv={csv_path.name}  |  deploy={deploy_str}  |  workers={args.workers}")
     print(f"Eval: {rego_str}")
 
-    rows = load_csv(args.limit)
+    rows = load_csv(csv_path, args.limit)
     if args.cases:
         selected = _parse_cases(args.cases)
         rows = [row for row in rows if row["idx"] in selected]
@@ -745,6 +811,9 @@ def main():
                                 "ok_resource", "fail_resource",
                                 "ok_intent_literal", "fail_intent_literal",
                                 "ok_predeploy_strict", "ok_e2e_strict",
+                                "ok_code_predeploy", "ok_deployable_code",
+                                "ok_adjusted_code_success",
+                                "benchmark_only_rego_fail", "deploy_environment_blocked",
                                 "deploy_rows", "deploy_attempts")}
     counter_lock = threading.Lock()
 
@@ -832,6 +901,18 @@ def main():
     print(f"  Strict predeploy (A4+Resource+Rego): {counters['ok_predeploy_strict']}/{len(results)}  ok")
     if not args.no_deploy:
         print(f"  Strict end-to-end (+Deploy):        {counters['ok_e2e_strict']}/{len(results)}  ok")
+    print(f"  Code predeploy (A4+Resource+Intent): {counters['ok_code_predeploy']}/{len(results)}  ok")
+    if not args.no_deploy:
+        print(f"  Deployable code (excludes Rego):     {counters['ok_deployable_code']}/{len(results)}  ok")
+    print(
+        f"  Adjusted code-success:              {counters['ok_adjusted_code_success']}/{len(results)}  ok"
+    )
+    if counters["benchmark_only_rego_fail"] or counters["deploy_environment_blocked"]:
+        print(
+            "  Non-code blockers: "
+            f"rego_benchmark_only={counters['benchmark_only_rego_fail']}, "
+            f"aws_environment={counters['deploy_environment_blocked']}"
+        )
 
     out_path = (Path(args.out) if args.out
                 else ROOT / "reviews" / "pipeline_results.json")

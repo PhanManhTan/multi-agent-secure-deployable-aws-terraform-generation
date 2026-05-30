@@ -1,0 +1,53 @@
+{
+  "row": 26,
+  "prompt": "An AWS EventBridge event rule named \"cron\" with a schedule_expression argument with a cron expression to specify a schedule of everyday at 7 UTC. An AWS EventBridge event target linking to the event rule resource. An AWS Lambda function resource named \"cron\" with a function_name argument of value \"cron-lambda-function\", a filename argument of value \"./supplement/lambda_func.zip\", a handler argument of value \"lambda_func.lambda_handler\", and a runtime argument with value \"python3.12\". An AWS Lambda permission resource with a function_name argument linking to the lambda function resource function_name, an action argument with value \"lambda:InvokeFunction\", a principle argument with value \"events.amazonaws.com\", and a source_arn argument linking to the EventBridge event rule.",
+  "val": {
+    "ok": true,
+    "elapsed_s": 6.75,
+    "error_type": null,
+    "checkov_passed": 0,
+    "checkov_failed": [],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 41.09,
+    "error_type": null,
+    "resources_created": [
+      "data.archive_file.lambda_zip",
+      "data.aws_iam_policy_document.lambda_assume",
+      "aws_cloudwatch_event_rule.cron",
+      "aws_cloudwatch_event_target.cron_target",
+      "aws_iam_role.lambda_exec",
+      "aws_iam_role_policy_attachment.lambda_basic_execution",
+      "aws_lambda_function.cron",
+      "aws_lambda_permission.allow_eventbridge"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": true,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

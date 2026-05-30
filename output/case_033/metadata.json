@@ -1,0 +1,73 @@
+{
+  "row": 33,
+  "prompt": "An AWS service that holds a web server which allows you to upload cat pictures and provides random cat pictures on demand. Accomplish this using the following resources: AWS DynamoDB table, AWS S3 bucket, AWS Lambda function, AWS Lambda permission, AWS API Gateway rest API, AWS API Gateway resource, AWS API Gateway method. Add any necessary resources.",
+  "val": {
+    "ok": true,
+    "elapsed_s": 12.14,
+    "error_type": null,
+    "checkov_passed": 13,
+    "checkov_failed": [
+      "CKV_AWS_115",
+      "CKV_AWS_18",
+      "CKV_AWS_76"
+    ],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 2
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 245.16,
+    "error_type": null,
+    "resources_created": [
+      "data.archive_file.random_cat_lambda_zip",
+      "data.archive_file.upload_cat_lambda_zip",
+      "data.aws_iam_policy_document.lambda_assume_role_random_cat",
+      "data.aws_iam_policy_document.lambda_assume_role_upload_cat",
+      "aws_api_gateway_deployment.cat_api_deployment",
+      "aws_api_gateway_integration.random_cat_integration",
+      "aws_api_gateway_integration.upload_cat_integration",
+      "aws_api_gateway_method.random_cat_method",
+      "aws_api_gateway_method.upload_cat_method",
+      "aws_api_gateway_resource.cats_2",
+      "aws_api_gateway_rest_api.cat_api",
+      "aws_api_gateway_stage.cat_api_stage",
+      "aws_dynamodb_table.cats",
+      "aws_iam_role.random_cat_lambda_role",
+      "aws_iam_role.upload_cat_lambda_role",
+      "aws_kms_key.generated_hardening",
+      "aws_lambda_function.random_cat_lambda",
+      "aws_lambda_function.upload_cat_lambda",
+      "aws_lambda_permission.random_cat_api_permission",
+      "aws_lambda_permission.upload_cat_api_permission",
+      "aws_s3_bucket.cat_pictures",
+      "aws_s3_bucket_public_access_block.cat_pictures_public_access",
+      "aws_s3_bucket_server_side_encryption_configuration.cat_pictures_encryption",
+      "aws_s3_bucket_versioning.cat_pictures_versioning"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 2
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": null,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

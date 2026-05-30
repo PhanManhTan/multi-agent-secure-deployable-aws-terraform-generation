@@ -1,0 +1,56 @@
+{
+  "row": 24,
+  "prompt": "An AWS EC2 key pair resource with public_key argument specified with a path to key file being \"./key.pub\". An AWS EC2 instance with the amazon linux 2023 x86-64 machine image with a key_name argument specified by the key pair resource and \"t2.micro\" instance_type. An AWS Backup plan resource, a rule argument block with a schedule of every day midnight, and an target_vault_name argument linking to the Backup vault resource, a lifecycle argument block with delete_after 7 days, and an advanced_back_up_setting argument block to specify the resource_type that is being backed up. A backup vault to use for the backup, and a backup selection according to the backup plan that backs up the EC2 instance. An IAM role for the backup selection, with an attached policy with ARN \"arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup\".",
+  "val": {
+    "ok": true,
+    "elapsed_s": 12.03,
+    "error_type": null,
+    "checkov_passed": 5,
+    "checkov_failed": [],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 2
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 76.6,
+    "error_type": null,
+    "resources_created": [
+      "data.aws_ami.amazon_linux_2023",
+      "data.aws_iam_policy_document.backup_assume_role",
+      "aws_backup_plan.main",
+      "aws_backup_selection.main",
+      "aws_backup_vault.main",
+      "aws_iam_role.backup",
+      "aws_iam_role_policy_attachment.backup_policy",
+      "aws_instance.main",
+      "aws_key_pair.key",
+      "aws_subnet.main",
+      "aws_vpc.main"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 2
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": true,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

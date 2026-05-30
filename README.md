@@ -183,17 +183,24 @@ python main.py --destroy infra.tf
 
 ### Chay test pipeline tren dataset
 
-`test_pipeline.py` dung `dataset/data-dev.csv`.
+Mac dinh `test_pipeline.py` dung `dataset/data-dev.csv` de chay nhanh. Khi can
+danh gia benchmark lon hon, truyen `--csv dataset/data-filtered.csv`.
 
 ```bash
-# Chay toan bo dataset
+# Chay toan bo dataset mac dinh nho
 python test_pipeline.py
 
-# Gioi han so row
+# Chay benchmark filtered 174 cases
+python test_pipeline.py --csv dataset/data-filtered.csv --cases 0-173 --workers 4 --out reviews/pipeline_results_filtered_full.json
+
+# Gioi han so case
 python test_pipeline.py --limit 5
 
-# Chon row cu the
+# Chon case cu the
 python test_pipeline.py --cases 0 3 7-10
+
+# Chon case tren dataset khac
+python test_pipeline.py --csv dataset/data-filtered.csv --cases 50 59 81
 
 # Bo qua A2 security
 python test_pipeline.py --no-secu
@@ -207,7 +214,7 @@ python test_pipeline.py --no-deploy
 # Giu lai resources sau apply, khong auto-destroy
 python test_pipeline.py --no-destroy
 
-# Chay song song nhieu row
+# Chay song song nhieu case
 python test_pipeline.py --workers 3
 
 # Luu ket qua ra file khac
@@ -220,6 +227,12 @@ Phan tich nhanh ket qua benchmark:
 
 ```bash
 python dataset/analyze_results.py reviews/pipeline_results.json
+
+# Neu result duoc tao tu dataset/data-filtered.csv thi truyen cung CSV
+python dataset/analyze_results.py reviews/pipeline_results_filtered_full.json --csv dataset/data-filtered.csv
+
+# Phan tich file benchmark 174 cases hien tai neu file co trong workspace
+python dataset/analyze_results.py result_full_174.json --csv dataset/data-filtered.csv
 ```
 
 Kiem tra nhanh cac rule/parser/classifier noi bo truoc khi ton LLM/AWS:
@@ -252,19 +265,95 @@ dung `opa eval` de kiem tra cac rule entrypoint pho bien nhu `valid`,
 `is_configuration_valid`, `has_valid_resources`, `valid_configuration`) truoc;
 neu khong co rule tong thi moi fallback sang rule con va record `entrypoint_type`.
 
-Ket qua `[data]`, `[rego]`, va `[deploy]` duoc record rieng. Neu A4 validation
-pass thi pipeline van chay A5 deploy de danh gia deployability, ke ca khi
-Resource/Rego fail. JSON result co `final_eval` de phan biet:
+Kết quả `[data]`, `[rego]`, và `[deploy]` được record riêng. Nếu A4 validation
+pass thì pipeline vẫn chạy A5 deploy để đánh giá deployability, kể cả khi
+Resource/Rego fail. JSON result có `final_eval` để phân biệt các loại thành công
+và thất bại.
 
-- `dataset_resource_ok`: match cot `Resource`/`esource`
-- `intent_literal_ok`: match cac literal ro rang trich tu `Prompt`/`Intent`
-- `terraform_validation_ok`: A4 validate/plan pass
-- `rego_intent_ok`: match cot `Rego intent`
-- `deploy_ok`: apply/destroy AWS thanh cong
-- `predeploy_strict_ok`: A4 + Resource + Rego deu pass
-- `end_to_end_strict_ok`: predeploy strict + Deploy pass
+### Ý nghĩa các thuộc tính đánh giá
+
+Các thuộc tính quan trọng trong `final_eval`:
+
+| Thuộc tính | Ý nghĩa |
+| --- | --- |
+| `dataset_resource_ok` | Generated Terraform có đủ resource bắt buộc theo cột `Resource`/`esource` của dataset. Helper/data source được tách riêng để không làm sai điểm resource chính. |
+| `intent_literal_ok` | Các literal rõ ràng trong `Prompt`/`Intent` như `lambda.js`, `custom_ttl_attribute`, `password1`, `cron(...)`, `BucketOwner`, `log/` có xuất hiện đúng trong code. |
+| `terraform_validation_ok` | A4 chạy Terraform validate/plan thành công. Đây là cổng kiểm tra cú pháp/schema/provider trước khi deploy. |
+| `rego_intent_ok` | Code thỏa rule trong cột `Rego intent`. Đây là benchmark gate, không đồng nghĩa tuyệt đối với deployability vì một số Rego có check quá cụ thể. |
+| `deploy_ok` | Terraform apply lên AWS và auto-destroy thành công. |
+| `predeploy_strict_ok` | `terraform_validation_ok` + `dataset_resource_ok` + `rego_intent_ok` đều pass, chưa tính deploy AWS. |
+| `end_to_end_strict_ok` | `predeploy_strict_ok` + `deploy_ok`. Đây là điểm strict benchmark nghiêm ngặt nhất. |
+| `code_predeploy_ok` | Code pass Terraform validation, resource match và literal intent; chưa tính Rego và AWS deploy. |
+| `deployable_code_ok` | Code validate được và deploy được trên AWS; dùng để đánh giá khả năng chạy thực tế, bỏ qua Rego benchmark. |
+| `adjusted_code_success_ok` | Thành công thực dụng: code deploy được, hoặc chỉ bị chặn bởi môi trường AWS/quota. Đây là metric nên dùng khi đánh giá chất lượng code sinh ra. |
+| `benchmark_only_rego_fail` | Rego fail nhưng code vẫn validate/resource/literal/deploy OK. Nên đưa vào nhóm audit dataset/Rego, không vội tính là lỗi code. |
+| `deploy_environment_blocked` | Code qua các gate chính nhưng AWS account/region/quota/subscription chặn deploy. |
+
+Các `failed_dimensions` thường gặp:
+
+| Dimension | Ý nghĩa |
+| --- | --- |
+| `architecture` | A1 không sinh được architecture plan hợp lệ, thường là không có resource bắt buộc. |
+| `engineering` | A3 không sinh được Terraform HCL dùng được. |
+| `terraform_validation` | A4 validate/plan fail do cú pháp, schema provider, logic Terraform hoặc lỗi init/timeout. |
+| `dataset_resource` | Thiếu resource bắt buộc theo dataset. |
+| `intent_literal` | Thiếu literal rõ ràng trong prompt/intent. |
+| `rego_intent` | Không pass Rego intent benchmark. |
+| `aws_deploy` | Terraform apply AWS fail; cần phân biệt lỗi code với lỗi môi trường/quota. |
+
+Khi đánh giá chất lượng code sinh ra, ưu tiên đọc `Code predeploy`,
+`Deployable code` và `Adjusted code-success`. `Strict end-to-end` vẫn hữu ích
+cho benchmark, nhưng có thể fail vì Rego dataset quá chặt hoặc AWS account bị
+giới hạn, không nhất thiết là lỗi generated Terraform.
 
 A2 security van chi dung CKV/Checkov nhu cu.
+
+### Kết quả benchmark hiện tại
+
+Kết quả mới nhất trong workspace được lưu ở `result_full_174.json`, chạy trên
+`dataset/data-filtered.csv` với 174 cases. Tóm tắt từ
+`python dataset/analyze_results.py result_full_174.json --csv dataset/data-filtered.csv`:
+
+| Chỉ số | Kết quả | Ghi chú |
+| --- | ---: | --- |
+| A1 architecture | 171/174 (98.3%) | 3 case architecture không có resource |
+| A3 engineering | 171/174 (98.3%) | Các case A1 fail không sang A3 |
+| A4 Terraform validate/plan | 151/174 (86.8%) | 16 SYNTAX, 2 INFRA, 2 LOGIC |
+| Dataset resource match | 150/174 (86.2%) | 9 case thiếu resource theo dataset |
+| Rego intent | 99/174 (56.9%) | Benchmark gate, nhiều rule Rego quá chặt |
+| AWS deploy OK | 131/174 (75.3%) | Apply/destroy thành công trên AWS |
+| Predeploy strict | 91/174 (52.3%) | A4 + Resource + Rego |
+| Strict end-to-end | 81/174 (46.6%) | Predeploy strict + deploy OK |
+| Code predeploy | 141/174 (81.0%) | A4 + Resource + Intent literal, chưa tính Rego/AWS |
+| Deployable code | 122/174 (70.1%) | Code validate và deploy được trên AWS |
+| Adjusted code-success | 129/174 (74.1%) | Bỏ qua benchmark-only Rego và AWS env/quota block |
+
+Các `failed_dimensions` trong `result_full_174.json`:
+
+- `rego_intent`: 60 cases
+- `aws_deploy`: 28 cases
+- `terraform_validation`: 20 cases
+- `dataset_resource`: 9 cases
+- `intent_literal`: 3 cases
+- `architecture`: 3 cases
+
+Phân loại theo hướng xử lý:
+
+- Pipeline/code cần sửa: 45 case theo `adjusted_code_success_ok = false`.
+- Benchmark-only Rego: 41 case, code đã qua các gate thực dụng nhưng Rego/dataset
+  có check quá cụ thể hoặc conflict với deployability.
+- AWS environment/quota: 7 case, bị chặn bởi subscription/quota/permission của
+  account hoặc region, không nên tính là lỗi sinh Terraform.
+
+Nhóm ưu tiên tiếp theo:
+
+- A4 validation/schema repair: cases 18, 27, 31, 32, 42, 45, 61, 68, 82, 84,
+  115, 120, 126, 130, 132, 134, 139, 141, 158, 166.
+- A5 deployability repair: cases 0, 21, 47, 56, 60, 64, 79, 101, 117, 121,
+  165, 167.
+- A1/A3 intent coverage: cases 28, 29, 50, 74, 76, 80, 114, 116, 122.
+- A1 architecture templates: cases 78, 161, 162.
+- Dataset/Rego audit: 37 case được analyzer gán owner `benchmark_dataset_rego_audit`.
 
 Luu y: `main.py --batch` hien dang tro toi `dataset/data-dev-fast.csv`. Neu file nay khong ton tai trong repo cua ban, hay dung `test_pipeline.py` nhu tren hoac tao file dataset tuong ung.
 

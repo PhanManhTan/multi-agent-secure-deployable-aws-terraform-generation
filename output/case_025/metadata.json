@@ -1,0 +1,53 @@
+{
+  "row": 25,
+  "prompt": "An AWS service that runs a code everyday at 7 UTC. Accomplish this using AWS EventBridge.",
+  "val": {
+    "ok": true,
+    "elapsed_s": 10.54,
+    "error_type": null,
+    "checkov_passed": 2,
+    "checkov_failed": [],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 34.12,
+    "error_type": null,
+    "resources_created": [
+      "data.archive_file.lambda_zip",
+      "data.aws_iam_policy_document.lambda_assume_role",
+      "aws_cloudwatch_event_rule.daily_schedule",
+      "aws_cloudwatch_event_target.daily_target",
+      "aws_iam_role.lambda_role",
+      "aws_iam_role_policy_attachment.lambda_basic_execution",
+      "aws_lambda_function.daily_code",
+      "aws_lambda_permission.allow_eventbridge"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": true,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

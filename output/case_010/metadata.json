@@ -1,0 +1,55 @@
+{
+  "row": 10,
+  "prompt": "Generate a Kinesis Firehose Delivery Stream with a Splunk destination",
+  "val": {
+    "ok": true,
+    "elapsed_s": 12.85,
+    "error_type": null,
+    "checkov_passed": 3,
+    "checkov_failed": [],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 2
+  },
+  "deploy": {
+    "ok": false,
+    "elapsed_s": 23.0,
+    "error_type": "ENV_LIMITATION",
+    "resources_created": [
+      "data.aws_iam_policy_document.firehose_assume_role",
+      "data.aws_iam_policy_document.firehose_splunk_policy",
+      "aws_iam_policy.firehose_splunk_policy",
+      "aws_iam_role.firehose_splunk_role",
+      "aws_iam_role_policy_attachment.firehose_splunk_role_attachment",
+      "aws_s3_bucket.firehose_backup",
+      "aws_s3_bucket_public_access_block.firehose_backup_public_access",
+      "aws_s3_bucket_server_side_encryption_configuration.firehose_backup_encryption"
+    ],
+    "auto_destroyed": false,
+    "auto_destroy_error": null,
+    "apply_raw_error": "Error: creating Kinesis Firehose Delivery Stream (splunk-firehose-stream): operation error Firehose: CreateDeliveryStream, https response error StatusCode: 400, RequestID: efade7bc-a7b6-b8e2-8d39-25ff41c81418, api error SubscriptionRequiredException: The AWS Access Key Id needs a subscription for the service\n\n  with aws_kinesis_firehose_delivery_stream.splunk_stream,\n  on main.tf line 59, in resource \"aws_kinesis_firehose_delivery_stream\" \"splunk_stream\":\n  59: resource \"aws_kinesis_firehose_delivery_stream\" \"splunk_stream\" {\nblic_buckets = true\n    }\n\n  # aws_s3_bucket_server_side_encryption_configuration.firehose_backup_encryption will be created\n  + resource \"aws_s3_bucket_server_side_encryption_configuration\" \"firehose_backup_encryption\" {\n      + bucket = (known after apply)\n      + id     = (known after apply)\n\n      + rule {\n          + apply_server_side_encryption_by_default {\n              + sse_algorithm     = \"AES256\"\n                # (1 unchanged attribute hidden)\n            }\n        }\n    }\n\nPlan: 7 to add, 0 to change, 0 to destroy.\naws_iam_role.firehose_splunk_role: Creating...\naws_s3_bucket.firehose_backup: Creating...\naws_iam_role.firehose_splunk_role: Creation complete after 1s [id=firehose-splunk-role-20260530104623618100000001]\naws_s3_bucket.firehose_backup: Creation complete after 2s [id=firehose-splunk-backup-20260530104623623400000002]\ndata.aws_iam_policy_document.firehose_splunk_policy: Reading...\naws_s3_bucket_public_access_block.firehose_backup_public_access: Creating...\naws_s3_bucket_server_side_encryption_configuration.firehose_backup_encryption: Creating...\ndata.aws_iam_policy_document.firehose_splunk_policy: Read complete after 0s [id=3674332814]\naws_iam_policy.firehose_splunk_policy: Creating...\naws_kinesis_firehose_delivery_stream.splunk_stream: Creating...\naws_s3_bucket_public_access_block.firehose_backup_public_access: Creation complete after 0s [id=firehose-splunk-backup-20260530104623623400000002]\naws_s3_bucket_server_side_encr",
+    "fix_instruction": "AWS rejected the apply because this account/region is not subscribed to the required service. Do not route this as a code repair; enable the service or rerun in a supported account/region.",
+    "attempts": 1
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": null,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": false,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [
+      "aws_deploy"
+    ],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": false,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": true,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

@@ -1,0 +1,54 @@
+{
+  "row": 1,
+  "prompt": "create a AWS codebuild project resource with example iam role and secondary sources",
+  "val": {
+    "ok": true,
+    "elapsed_s": 11.63,
+    "error_type": null,
+    "checkov_passed": 6,
+    "checkov_failed": [
+      "CKV_AWS_18",
+      "CKV_AWS_21"
+    ],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 2
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 36.25,
+    "error_type": null,
+    "resources_created": [
+      "aws_codebuild_project.example",
+      "aws_iam_role.codebuild_role",
+      "aws_iam_role_policy_attachment.codebuild_role_attachment",
+      "aws_s3_bucket.source",
+      "aws_s3_bucket_public_access_block.source_public_access",
+      "aws_s3_bucket_server_side_encryption_configuration.source_encryption"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": null,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

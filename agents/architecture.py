@@ -345,6 +345,191 @@ def _ensure_cat_api_shape(plan: dict) -> list[str]:
         if min(counts) >= 2:
             break
         changes.extend(_ensure_lambda_api_pair(plan, suffix, method, rest_api, api_resource))
+
+    integrations = _entries_of_type(plan, "aws_api_gateway_integration")
+    deployment = _first_resource(plan, "aws_api_gateway_deployment")
+    if integrations and not deployment:
+        deployment = _append_resource(plan, {
+            "type": "aws_api_gateway_deployment",
+            "name": _unique_name(plan, "cat_api_deployment"),
+            "attributes": {
+                "rest_api_id": f"REF:aws_api_gateway_rest_api.{rest_api['name']}.id",
+                "depends_on": [
+                    f"REF:aws_api_gateway_integration.{integration['name']}"
+                    for integration in integrations
+                ],
+            },
+            "blocks": {},
+        })
+        changes.append("aws_api_gateway_deployment")
+
+    if deployment and not _has_type(plan, "aws_api_gateway_stage"):
+        _append_resource(plan, {
+            "type": "aws_api_gateway_stage",
+            "name": _unique_name(plan, "cat_api_stage"),
+            "attributes": {
+                "rest_api_id": f"REF:aws_api_gateway_rest_api.{rest_api['name']}.id",
+                "deployment_id": f"REF:aws_api_gateway_deployment.{deployment['name']}.id",
+                "stage_name": "prod",
+            },
+            "blocks": {},
+        })
+        changes.append("aws_api_gateway_stage")
+    return changes
+
+
+def _ensure_elasticache_password_user(plan: dict) -> list[str]:
+    changes = []
+    user = _first_resource(plan, "aws_elasticache_user")
+    if not user:
+        user = _append_resource(plan, {
+            "type": "aws_elasticache_user",
+            "name": _unique_name(plan, "redis_user"),
+            "attributes": {},
+            "blocks": {},
+        })
+        changes.append("aws_elasticache_user")
+    attrs = user.setdefault("attributes", {})
+    attrs.setdefault("user_id", "redis-user")
+    attrs.setdefault("user_name", "redis-user")
+    attrs.setdefault("engine", "REDIS")
+    attrs.setdefault("access_string", "on ~* +@all")
+    blocks = user.setdefault("blocks", {})
+    blocks["authentication_mode"] = {
+        "type": "password",
+        "passwords": ["password1", "password2"],
+    }
+    return changes or ["aws_elasticache_user"]
+
+
+def _ensure_eventbridge_lambda_schedule(plan: dict, *, every_15: bool = False,
+                                        daily_7_utc: bool = False) -> list[str]:
+    changes = []
+    assume_doc = _first_entry(plan, "aws_iam_policy_document")
+    if not assume_doc:
+        assume_doc = _append_data_source(plan, {
+            "type": "aws_iam_policy_document",
+            "name": _unique_name(plan, "lambda_assume_role"),
+            "attributes": {},
+            "blocks": {
+                "statement": {
+                    "actions": ["sts:AssumeRole"],
+                    "principals": {
+                        "type": "Service",
+                        "identifiers": ["lambda.amazonaws.com"],
+                    },
+                },
+            },
+        })
+        changes.append("aws_iam_policy_document")
+
+    role = _first_resource(plan, "aws_iam_role")
+    if not role:
+        role = _append_resource(plan, {
+            "type": "aws_iam_role",
+            "name": _unique_name(plan, "lambda_role"),
+            "attributes": {
+                "name_prefix": "lambda-schedule-",
+                "assume_role_policy": f"REF:data.aws_iam_policy_document.{assume_doc['name']}.json",
+            },
+            "blocks": {},
+        })
+        changes.append("aws_iam_role")
+
+    if not _has_type(plan, "aws_iam_role_policy_attachment"):
+        _append_resource(plan, {
+            "type": "aws_iam_role_policy_attachment",
+            "name": _unique_name(plan, "lambda_basic_execution"),
+            "attributes": {
+                "role": f"REF:aws_iam_role.{role['name']}.name",
+                "policy_arn": "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+            },
+            "blocks": {},
+        })
+        changes.append("aws_iam_role_policy_attachment")
+
+    archive = _first_entry(plan, "archive_file")
+    if not archive:
+        archive = _append_data_source(plan, {
+            "type": "archive_file",
+            "name": _unique_name(plan, "lambda_zip"),
+            "attributes": {
+                "type": "zip",
+                "source_file": "lambda_func.py" if daily_7_utc else "lambda.js",
+                "output_path": "cron.zip" if daily_7_utc else "lambda.zip",
+            },
+            "blocks": {},
+        })
+        changes.append("archive_file")
+
+    fn = _first_resource(plan, "aws_lambda_function")
+    if not fn:
+        fn = _append_resource(plan, {
+            "type": "aws_lambda_function",
+            "name": _unique_name(plan, "cron" if daily_7_utc else "scheduled_lambda"),
+            "attributes": {
+                "function_name": "cron-lambda-function" if daily_7_utc else "scheduled-lambda",
+                "role": f"REF:aws_iam_role.{role['name']}.arn",
+                "filename": f"REF:data.archive_file.{archive['name']}.output_path",
+                "source_code_hash": f"REF:data.archive_file.{archive['name']}.output_base64sha256",
+                "handler": "lambda_func.lambda_handler" if daily_7_utc else "index.handler",
+                "runtime": "python3.12" if daily_7_utc else "nodejs18.x",
+            },
+            "blocks": {},
+        })
+        changes.append("aws_lambda_function")
+    else:
+        attrs = fn.setdefault("attributes", {})
+        if daily_7_utc:
+            attrs["function_name"] = "cron-lambda-function"
+            attrs["filename"] = f"REF:data.archive_file.{archive['name']}.output_path"
+            attrs["handler"] = "lambda_func.lambda_handler"
+            attrs["runtime"] = "python3.12"
+        attrs.setdefault("role", f"REF:aws_iam_role.{role['name']}.arn")
+
+    rule = _first_resource(plan, "aws_cloudwatch_event_rule")
+    schedule = "rate(15 minutes)" if every_15 else "cron(0 7 * * ? *)"
+    if not rule:
+        rule = _append_resource(plan, {
+            "type": "aws_cloudwatch_event_rule",
+            "name": _unique_name(plan, "cron" if daily_7_utc else "every_15_minutes"),
+            "attributes": {
+                "name": "cron" if daily_7_utc else "every-15-minutes",
+                "schedule_expression": schedule,
+            },
+            "blocks": {},
+        })
+        changes.append("aws_cloudwatch_event_rule")
+    else:
+        rule.setdefault("attributes", {})["schedule_expression"] = schedule
+
+    if not _has_type(plan, "aws_cloudwatch_event_target"):
+        _append_resource(plan, {
+            "type": "aws_cloudwatch_event_target",
+            "name": _unique_name(plan, "cron_target"),
+            "attributes": {
+                "rule": f"REF:aws_cloudwatch_event_rule.{rule['name']}.name",
+                "arn": f"REF:aws_lambda_function.{fn['name']}.arn",
+            },
+            "blocks": {},
+        })
+        changes.append("aws_cloudwatch_event_target")
+
+    if not _has_type(plan, "aws_lambda_permission"):
+        _append_resource(plan, {
+            "type": "aws_lambda_permission",
+            "name": _unique_name(plan, "allow_events"),
+            "attributes": {
+                "statement_id": "AllowExecutionFromEventBridge",
+                "action": "lambda:InvokeFunction",
+                "function_name": f"REF:aws_lambda_function.{fn['name']}.function_name",
+                "principal": "events.amazonaws.com",
+                "source_arn": f"REF:aws_cloudwatch_event_rule.{rule['name']}.arn",
+            },
+            "blocks": {},
+        })
+        changes.append("aws_lambda_permission")
+
     return changes
 
 
@@ -415,6 +600,22 @@ def _apply_intent_guards(plan: dict, prompt: str) -> list[dict]:
         and ("random" in text or "on demand" in text)
     ):
         changes.extend(_ensure_cat_api_shape(plan))
+
+    if "elasticache" in text and "password" in text:
+        changes.extend(_ensure_elasticache_password_user(plan))
+
+    daily_7_utc = (
+        ("eventbridge" in text or "event rule" in text or "cloudwatch event" in text)
+        and "lambda" in text
+        and ("7 utc" in text or "7:00 utc" in text or "everyday at 7" in text)
+    )
+    every_15 = "lambda" in text and ("every 15 minutes" in text or "15 minutes" in text)
+    if daily_7_utc or every_15:
+        changes.extend(_ensure_eventbridge_lambda_schedule(
+            plan,
+            every_15=every_15 and not daily_7_utc,
+            daily_7_utc=daily_7_utc,
+        ))
 
     if not changes:
         return []
@@ -566,6 +767,61 @@ def _autograder_codebuild_vpc_plan() -> dict:
     }
 
 
+def _elasticache_password_user_plan() -> dict:
+    return {
+        "resources": [
+            {
+                "type": "aws_elasticache_user",
+                "name": "auth_user",
+                "attributes": {
+                    "user_id": "auth-user",
+                    "user_name": "auth-user",
+                    "engine": "REDIS",
+                    "access_string": "on ~* +@all",
+                },
+                "blocks": {
+                    "authentication_mode": {
+                        "type": "password",
+                        "passwords": ["password1", "password2"],
+                    },
+                },
+            },
+        ],
+        "data_sources": [],
+    }
+
+
+def _cat_upload_service_plan() -> dict:
+    plan = {
+        "resources": [
+            {
+                "type": "aws_dynamodb_table",
+                "name": "cats",
+                "attributes": {
+                    "name": "cat-pictures",
+                    "billing_mode": "PAY_PER_REQUEST",
+                    "hash_key": "id",
+                },
+                "blocks": {
+                    "attribute": {
+                        "name": "id",
+                        "type": "S",
+                    },
+                },
+            },
+            {
+                "type": "aws_s3_bucket",
+                "name": "cat_pictures",
+                "attributes": {"bucket_prefix": "cat-pictures-"},
+                "blocks": {},
+            },
+        ],
+        "data_sources": [],
+    }
+    _ensure_cat_api_shape(plan)
+    return plan
+
+
 def _deterministic_plan(prompt: str) -> dict | None:
     text = (prompt or "").lower()
     if (
@@ -575,6 +831,23 @@ def _deterministic_plan(prompt: str) -> dict | None:
         and ("internet" in text or "github" in text)
     ):
         return _autograder_codebuild_vpc_plan()
+    if (
+        "elasticache" in text
+        and "user" in text
+        and "password" in text
+        and not any(term in text for term in ("replication group", "cluster", "subnet group", "vpc"))
+    ):
+        return _elasticache_password_user_plan()
+    if (
+        "cat" in text
+        and "upload" in text
+        and "random" in text
+        and "lambda" in text
+        and ("api gateway" in text or "web server" in text)
+        and "dynamodb" in text
+        and ("s3" in text or "bucket" in text)
+    ):
+        return _cat_upload_service_plan()
     return None
 
 

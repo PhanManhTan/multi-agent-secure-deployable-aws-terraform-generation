@@ -1,0 +1,48 @@
+{
+  "row": 11,
+  "prompt": "Set up a non-alias aws_route_53 record that is linked to an aws_route53_zone resource called \"private_zone\" whose name paramter is set to \"internal.example53.com\" and has an aws_vpc resource called \"main\" attached to it",
+  "val": {
+    "ok": true,
+    "elapsed_s": 12.45,
+    "error_type": null,
+    "checkov_passed": 0,
+    "checkov_failed": [],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 215.62,
+    "error_type": null,
+    "resources_created": [
+      "aws_route53_record.test_record",
+      "aws_route53_zone.private_zone",
+      "aws_vpc.main"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": null,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

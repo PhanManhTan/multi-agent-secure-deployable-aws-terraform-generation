@@ -1,0 +1,53 @@
+{
+  "row": 17,
+  "prompt": "Create the latest Amazon Linux 2 AMI with cpu count= 2 and cores per threads per core= 2",
+  "val": {
+    "ok": true,
+    "elapsed_s": 15.22,
+    "error_type": null,
+    "checkov_passed": 5,
+    "checkov_failed": [],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 2
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 109.44,
+    "error_type": null,
+    "resources_created": [
+      "data.aws_ami.amazon_linux_2_latest",
+      "aws_instance.my_instance",
+      "aws_internet_gateway.gw",
+      "aws_route_table.public",
+      "aws_route_table_association.main",
+      "aws_security_group.instance_sg",
+      "aws_subnet.main",
+      "aws_vpc.main"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 2
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": null,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

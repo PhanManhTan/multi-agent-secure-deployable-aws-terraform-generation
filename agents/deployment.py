@@ -8,6 +8,7 @@ Phân loại:
   - Timeout / connection → TRANSIENT → retry A5 (deploy_retry_count, tối đa 2 lần)
   - FIXABLE → A3 sửa code (deploy_retry_count <= 2, tối đa 2 lần route về A3)
   - MISSING_RESOURCE → A1 re-plan (deploy_retry_count <= 2, tối đa 2 lần route về A1)
+  - ENV_LIMITATION / QUOTA / PERMISSION → requires_human, không retry code
   - Còn lại → LLM phân loại FIXABLE / UNKNOWN
     FIXABLE → A3 sửa code (qua fix_feedback, tăng eng_retry_count, deploy_retry <= 2)
     UNKNOWN → requires_human
@@ -98,6 +99,48 @@ def _deterministic_deploy_fix(error_text: str) -> tuple[str | None, str | None]:
     """Classify common AWS apply errors without spending retries on the wrong route."""
     text = (error_text or "").lower()
 
+    if (
+        "subscriptionrequiredexception" in text
+        or "not currently subscribed" in text
+        or "not subscribed" in text
+    ):
+        return (
+            "ENV_LIMITATION",
+            "AWS rejected the apply because this account/region is not subscribed to the "
+            "required service. Do not route this as a code repair; enable the service or "
+            "rerun in a supported account/region.",
+        )
+
+    if "lightsail" in text and ("quota" in text or "limit" in text):
+        return (
+            "QUOTA",
+            "AWS Lightsail quota/account limits blocked deployment. This is an environment "
+            "capacity issue; clean up existing resources, request quota, or rerun in another "
+            "region/account.",
+        )
+
+    if "putbucketaccelerateconfiguration" in text and (
+        "accessdenied" in text or "statuscode: 403" in text
+    ):
+        return (
+            "ENV_LIMITATION",
+            "S3 bucket acceleration could not be enabled in this AWS environment. Treat this "
+            "as an account/region permission limitation unless the prompt explicitly requires "
+            "transfer acceleration.",
+        )
+
+    if (
+        "authorizationheadermalformed" in text
+        or "illegallocationconstraintexception" in text
+        or ("s3" in text and "region" in text and "expecting" in text)
+    ):
+        return (
+            "FIXABLE",
+            "The AWS provider region does not match the region expected by the S3 operation. "
+            "Set the provider region from the prompt/AWS target region and keep S3 bucket "
+            "location-dependent resources in that same region.",
+        )
+
     if "putfunctionconcurrency" in text or "reservedconcurrentexecutions" in text:
         return (
             "FIXABLE",
@@ -119,6 +162,13 @@ def _deterministic_deploy_fix(error_text: str) -> tuple[str | None, str | None]:
             "FIXABLE",
             "For `aws_elasticache_user.user_id`, use a compliant id: start with a letter, "
             "use only letters, digits, and hyphens, and avoid underscores/consecutive hyphens.",
+        )
+
+    if "elasticache" in text and "useralreadyexists" in text:
+        return (
+            "FIXABLE",
+            "ElastiCache user ids are account/region scoped. Append a `random_id` suffix to "
+            "`aws_elasticache_user.user_id` and `user_name`, and keep references resource-based.",
         )
 
     if "does not support specifying cpuoptions" in text:
@@ -326,7 +376,7 @@ def _llm_classify_deploy(
         logger.warning("Agent 5 LLM classify error (%s) — UNKNOWN", e)
         return "UNKNOWN", None
     et = parsed.get("error_type")
-    if et not in ("FIXABLE", "MISSING_RESOURCE", "PERMISSION", "QUOTA", "UNKNOWN"):
+    if et not in ("FIXABLE", "MISSING_RESOURCE", "PERMISSION", "QUOTA", "ENV_LIMITATION", "UNKNOWN"):
         et = "UNKNOWN"
     fix = parsed.get("fix_instruction") if et in ("FIXABLE", "MISSING_RESOURCE") else None
     return et, (str(fix)[:500] if fix else None)
@@ -585,6 +635,6 @@ def route_after_deployment(state: AgentState) -> str:
         return "engineering"
     if error_type == "MISSING_RESOURCE" and deploy_retry <= 2:
         return "architecture"
-    # PERMISSION, QUOTA, UNKNOWN, retry exhausted — all require human
+    # PERMISSION, QUOTA, ENV_LIMITATION, UNKNOWN, retry exhausted — all require human
     logger.info("Agent 5: route requires_human (error_type=%s deploy_retry=%d)", error_type, deploy_retry)
     return "requires_human"

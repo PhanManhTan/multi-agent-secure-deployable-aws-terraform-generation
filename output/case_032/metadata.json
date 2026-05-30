@@ -1,0 +1,54 @@
+{
+  "row": 32,
+  "prompt": "Create an IAM policy document that allows the 's3.amazonaws.com' service to publish to an SNS topic for S3 event notifications. Specify the actions as 'SNS:Publish' and set the resource to the ARN of the SNS topic 's3-event-notification-topic'. Apply a condition to allow this action only if the source ARN is similar to the ARN of the specified S3 bucket. Create an SNS topic named 's3-event-notification-topic' with the generated IAM policy. Set up an S3 bucket named 'example-bucket' and configure it to send notifications to the SNS topic for 's3:ObjectCreated:*' events with a filter for '.log' suffix.",
+  "val": {
+    "ok": true,
+    "elapsed_s": 13.0,
+    "error_type": null,
+    "checkov_passed": 0,
+    "checkov_failed": [
+      "CKV_AWS_26"
+    ],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 2
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 19.16,
+    "error_type": null,
+    "resources_created": [
+      "data.aws_iam_policy_document.sns_topic_policy",
+      "aws_s3_bucket.example",
+      "aws_s3_bucket_notification.bucket_notification",
+      "aws_s3_bucket_public_access_block.example_public_access",
+      "aws_s3_bucket_server_side_encryption_configuration.example_encryption",
+      "aws_sns_topic.s3_event_notification_topic",
+      "aws_sns_topic_policy.s3_event_topic_policy"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": null,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

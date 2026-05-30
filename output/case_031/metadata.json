@@ -1,0 +1,60 @@
+{
+  "row": 31,
+  "prompt": "create a AWS codebuild project resource with example iam role, example GITHUB source, and a logs config",
+  "val": {
+    "ok": true,
+    "elapsed_s": 13.03,
+    "error_type": null,
+    "checkov_passed": 2,
+    "checkov_failed": [
+      "CKV_AWS_18",
+      "CKV_AWS_21"
+    ],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 4
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 29.68,
+    "error_type": null,
+    "resources_created": [
+      "data.aws_iam_policy_document.codebuild_assume_role",
+      "data.aws_iam_policy_document.codebuild_logs",
+      "aws_codebuild_project.example",
+      "aws_codebuild_source_credential.github",
+      "aws_iam_policy.codebuild_logs",
+      "aws_iam_role.codebuild",
+      "aws_iam_role_policy_attachment.codebuild_logs_attach",
+      "aws_s3_bucket.artifacts",
+      "aws_s3_bucket_public_access_block.artifacts_public_access",
+      "aws_s3_bucket_server_side_encryption_configuration.artifacts_encryption",
+      "random_string.bucket_suffix",
+      "random_string.github_token"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 3
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": null,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

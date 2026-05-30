@@ -1,0 +1,48 @@
+{
+  "row": 28,
+  "prompt": "Create a Lightsail Disk resource and attaches the Lightsail disk to a Lightsail Instance",
+  "val": {
+    "ok": true,
+    "elapsed_s": 11.34,
+    "error_type": null,
+    "checkov_passed": 0,
+    "checkov_failed": [],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 2
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 174.44,
+    "error_type": null,
+    "resources_created": [
+      "aws_lightsail_disk.example",
+      "aws_lightsail_disk_attachment.example",
+      "aws_lightsail_instance.example"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": null,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

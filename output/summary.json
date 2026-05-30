@@ -1,0 +1,185 @@
+{
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json",
+  "total_rows": 34,
+  "written": 34,
+  "skipped": [],
+  "quality": {
+    "terraform_validated": 34,
+    "aws_deploy_ok": 33,
+    "code_predeploy_ok": 33,
+    "deployable_code_ok": 32,
+    "adjusted_code_success_ok": 33
+  },
+  "files": [
+    {
+      "row": 0,
+      "path": "output/case_000/main.tf",
+      "chars": 619
+    },
+    {
+      "row": 1,
+      "path": "output/case_001/main.tf",
+      "chars": 1998
+    },
+    {
+      "row": 2,
+      "path": "output/case_002/main.tf",
+      "chars": 807
+    },
+    {
+      "row": 3,
+      "path": "output/case_003/main.tf",
+      "chars": 3397
+    },
+    {
+      "row": 4,
+      "path": "output/case_004/main.tf",
+      "chars": 479
+    },
+    {
+      "row": 5,
+      "path": "output/case_005/main.tf",
+      "chars": 792
+    },
+    {
+      "row": 6,
+      "path": "output/case_006/main.tf",
+      "chars": 4536
+    },
+    {
+      "row": 7,
+      "path": "output/case_007/main.tf",
+      "chars": 596
+    },
+    {
+      "row": 8,
+      "path": "output/case_008/main.tf",
+      "chars": 508
+    },
+    {
+      "row": 9,
+      "path": "output/case_009/main.tf",
+      "chars": 732
+    },
+    {
+      "row": 10,
+      "path": "output/case_010/main.tf",
+      "chars": 2437
+    },
+    {
+      "row": 11,
+      "path": "output/case_011/main.tf",
+      "chars": 759
+    },
+    {
+      "row": 12,
+      "path": "output/case_012/main.tf",
+      "chars": 1673
+    },
+    {
+      "row": 13,
+      "path": "output/case_013/main.tf",
+      "chars": 1144
+    },
+    {
+      "row": 14,
+      "path": "output/case_014/main.tf",
+      "chars": 1332
+    },
+    {
+      "row": 15,
+      "path": "output/case_015/main.tf",
+      "chars": 1460
+    },
+    {
+      "row": 16,
+      "path": "output/case_016/main.tf",
+      "chars": 1418
+    },
+    {
+      "row": 17,
+      "path": "output/case_017/main.tf",
+      "chars": 2271
+    },
+    {
+      "row": 18,
+      "path": "output/case_018/main.tf",
+      "chars": 755
+    },
+    {
+      "row": 19,
+      "path": "output/case_019/main.tf",
+      "chars": 878
+    },
+    {
+      "row": 20,
+      "path": "output/case_020/main.tf",
+      "chars": 1003
+    },
+    {
+      "row": 21,
+      "path": "output/case_021/main.tf",
+      "chars": 1064
+    },
+    {
+      "row": 22,
+      "path": "output/case_022/main.tf",
+      "chars": 1012
+    },
+    {
+      "row": 23,
+      "path": "output/case_023/main.tf",
+      "chars": 1027
+    },
+    {
+      "row": 24,
+      "path": "output/case_024/main.tf",
+      "chars": 2392
+    },
+    {
+      "row": 25,
+      "path": "output/case_025/main.tf",
+      "chars": 2219
+    },
+    {
+      "row": 26,
+      "path": "output/case_026/main.tf",
+      "chars": 1897
+    },
+    {
+      "row": 27,
+      "path": "output/case_027/main.tf",
+      "chars": 574
+    },
+    {
+      "row": 28,
+      "path": "output/case_028/main.tf",
+      "chars": 897
+    },
+    {
+      "row": 29,
+      "path": "output/case_029/main.tf",
+      "chars": 738
+    },
+    {
+      "row": 30,
+      "path": "output/case_030/main.tf",
+      "chars": 515
+    },
+    {
+      "row": 31,
+      "path": "output/case_031/main.tf",
+      "chars": 2735
+    },
+    {
+      "row": 32,
+      "path": "output/case_032/main.tf",
+      "chars": 1919
+    },
+    {
+      "row": 33,
+      "path": "output/case_033/main.tf",
+      "chars": 6434
+    }
+  ]
+}

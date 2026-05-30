@@ -1,0 +1,59 @@
+{
+  "row": 6,
+  "prompt": "create a AWS codebuild project resource with example iam role, environment variables, secondary sources, secondary artifacts",
+  "val": {
+    "ok": true,
+    "elapsed_s": 11.43,
+    "error_type": null,
+    "checkov_passed": 1,
+    "checkov_failed": [
+      "CKV_AWS_147"
+    ],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 28.34,
+    "error_type": null,
+    "resources_created": [
+      "aws_codebuild_project.example",
+      "aws_iam_role.codebuild_role",
+      "aws_iam_role_policy.codebuild_policy",
+      "aws_s3_bucket.artifact_bucket",
+      "aws_s3_bucket.secondary_artifact_bucket",
+      "aws_s3_bucket.secondary_source_bucket",
+      "aws_s3_bucket_public_access_block.artifact_bucket_public_access",
+      "aws_s3_bucket_public_access_block.secondary_artifact_bucket_public_access",
+      "aws_s3_bucket_public_access_block.secondary_source_bucket_public_access",
+      "aws_s3_bucket_server_side_encryption_configuration.artifact_bucket_encryption",
+      "aws_s3_bucket_server_side_encryption_configuration.secondary_artifact_bucket_encryption",
+      "aws_s3_bucket_server_side_encryption_configuration.secondary_source_bucket_encryption"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": null,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

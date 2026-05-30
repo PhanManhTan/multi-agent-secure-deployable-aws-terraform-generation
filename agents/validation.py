@@ -191,6 +191,58 @@ def _deterministic_schema_fix(error_text: str, code_ctx: str) -> str:
             "argument. Use valid Lightsail arguments only, and keep disk attachments "
             "referencing the instance/disk resource names."
         )
+    if "aws_ami" in text and (
+        "invalid resource type" in text
+        or "unsupported argument" in text
+        or "most_recent" in text
+        or "owners" in text
+    ):
+        hints.append(
+            "When selecting an existing/latest AMI, use `data \"aws_ami\" \"<name>\"`, not "
+            "`resource \"aws_ami\"`. Reference it as `data.aws_ami.<name>.id` from EC2 "
+            "instances."
+        )
+    if "aws_s3_bucket" in text and "server_side_encryption_configuration" in text:
+        hints.append(
+            "For S3 default encryption with AWS provider ~> 5.0, do not put "
+            "`server_side_encryption_configuration` inside `aws_s3_bucket`. Create a "
+            "separate `aws_s3_bucket_server_side_encryption_configuration` resource with "
+            "`bucket = aws_s3_bucket.<name>.id`, `rule { apply_server_side_encryption_by_default { ... } }`."
+        )
+    if "aws_kms_key" in text and "aws_s3_bucket" in text and (
+        "kms_master_key_id" in text or "sse_algorithm" in text
+    ):
+        hints.append(
+            "For S3 SSE-KMS, set `sse_algorithm = \"aws:kms\"` and "
+            "`kms_master_key_id = aws_kms_key.<name>.arn` inside "
+            "`aws_s3_bucket_server_side_encryption_configuration.rule.apply_server_side_encryption_by_default`."
+        )
+    if "aws_secretsmanager_secret_version" in text and (
+        "secret_string" in text or "secret_binary" in text or "missing required" in text
+    ):
+        hints.append(
+            "`aws_secretsmanager_secret_version` requires exactly one secret value. Set "
+            "`secret_string = jsonencode({...})` or another non-empty string, and keep "
+            "`secret_id = aws_secretsmanager_secret.<name>.id`."
+        )
+    if "aws_elasticache_user_group" in text:
+        if "user_ids" in text or "missing required" in text:
+            hints.append(
+                "`aws_elasticache_user_group` requires `engine` and `user_ids`. Create or "
+                "reference `aws_elasticache_user` resources and set "
+                "`user_ids = [aws_elasticache_user.<name>.user_id]`."
+            )
+        if "unsupported block" in text or "user {" in text:
+            hints.append(
+                "Do not use nested `user {}` blocks in `aws_elasticache_user_group`; use "
+                "the `user_ids` list argument instead."
+            )
+    if "aws_elasticache_user" in text and "authentication_mode" in text:
+        hints.append(
+            "`aws_elasticache_user.authentication_mode` is a block, e.g. "
+            "`authentication_mode { type = \"password\" passwords = [\"...\"] }`; do not "
+            "set it as a plain string and do not use a separate top-level `passwords` argument."
+        )
     if "aws_codebuild_project" in text:
         if "build_spec" in text:
             hints.append(

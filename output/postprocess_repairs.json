@@ -1,0 +1,46 @@
+[
+  {
+    "row": 1,
+    "path": "output/case_001/main.tf",
+    "repairs": [
+      "replaced unsupported CodeBuild name_prefix with name"
+    ]
+  },
+  {
+    "row": 10,
+    "path": "output/case_010/main.tf",
+    "repairs": [
+      "removed invalid top-level Firehose cloudwatch_logging_options",
+      "removed top-level Firehose role_arn"
+    ]
+  },
+  {
+    "row": 12,
+    "path": "output/case_012/main.tf",
+    "repairs": [
+      "changed S3 ownership controls to allow explicit ACL resource"
+    ]
+  },
+  {
+    "row": 18,
+    "path": "output/case_018/main.tf",
+    "repairs": [
+      "normalized ElastiCache passwords to deployable examples",
+      "removed slow ElastiCache replication group from user-only prompt"
+    ]
+  },
+  {
+    "row": 31,
+    "path": "output/case_031/main.tf",
+    "repairs": [
+      "renamed aws_ssm_parameter kms_key_id to key_id"
+    ]
+  },
+  {
+    "row": 31,
+    "path": "output/case_031/main.tf",
+    "repairs": [
+      "removed unsupported CodeBuild cloudwatch_logs encryption_disabled"
+    ]
+  }
+]

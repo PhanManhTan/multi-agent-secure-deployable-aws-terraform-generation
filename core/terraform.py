@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import zipfile
@@ -31,12 +32,41 @@ _TF_ENV = {
 _REQUIRED_TOOLS = ("checkov", "terraform")
 
 
+def _is_current_platform_executable(path: str | Path | None) -> bool:
+    if not path:
+        return False
+    p = Path(path)
+    if not p.is_file() or not os.access(str(p), os.X_OK):
+        return False
+    try:
+        first_line = p.open("rb").readline(200).decode("utf-8", errors="ignore")
+    except OSError:
+        return False
+    # WSL PATH can expose Windows console scripts with shebangs like
+    # `#!D:\Application\Py\python.exe`, which exist but cannot be exec'd here.
+    if first_line.startswith("#!") and ":\\" in first_line:
+        return False
+    return True
+
+
+def _resolve_executable(name: str, configured: str | None = None) -> str | None:
+    candidates = [
+        configured,
+        str(Path(sys.executable).parent / name),
+        shutil.which(name),
+    ]
+    for candidate in candidates:
+        if _is_current_platform_executable(candidate):
+            return str(Path(candidate))
+    return None
+
+
 def check_required_tools() -> None:
     """Kiểm tra các công cụ bắt buộc có trong PATH không.
 
     Gọi một lần lúc startup để fail fast thay vì crash giữa benchmark.
     """
-    missing = [t for t in _REQUIRED_TOOLS if not shutil.which(t)]
+    missing = [t for t in _REQUIRED_TOOLS if not _resolve_executable(t, os.environ.get(f"{t.upper()}_BIN"))]
     if missing:
         raise RuntimeError(f"Công cụ chưa được cài: {', '.join(missing)}")
 
@@ -49,7 +79,7 @@ _LOCAL_FILE_PATTERNS = re.compile(
     r'filename\s*=\s*"([^"]+)"'                  # filename = "..."
     r'|source_file\s*=\s*"([^"]+)"'              # source_file = "..."
     r'|source_dir\s*=\s*"([^"]+)"'               # source_dir = "..." (archive_file dir)
-    r'|source\s*=\s*"(\.{1,2}/[^"]+)"'           # source = "./..." or "../..." (local only)
+    r'|source\s*=\s*"((?:\.{1,2}/)?[^":\n]+\.[A-Za-z0-9]+)"' # source = local file path
     r'|(?:template|config)file?\s*=\s*"([^"]+)"' # template/config = "..."
     r'|file\s*\(\s*"([^"]+)"\s*\)'               # file("...")
     r'|templatefile\s*\(\s*"([^"]+)"'            # templatefile("...", ...)
@@ -62,6 +92,7 @@ _STUB_CONTENT: dict[str, bytes | str] = {
     ".js":  "exports.handler = async (event) => ({ statusCode: 200 });\n",
     ".sh":  "#!/bin/bash\necho stub\n",
     ".json": "{}\n",
+    ".pdf":  b"%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n",
     ".yaml": "",
     ".yml":  "",
     ".env":  "",
@@ -256,7 +287,7 @@ def run_checkov_on_hcl(hcl: str, timeout: int = 60,
           "scan_seconds":        float,
         }
     """
-    checkov_bin = os.environ.get("CHECKOV_BIN") or shutil.which("checkov")
+    checkov_bin = _resolve_executable("checkov", os.environ.get("CHECKOV_BIN"))
     if not checkov_bin:
         raise RuntimeError("checkov not found — set CHECKOV_BIN in .env or add to PATH")
 

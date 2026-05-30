@@ -1,0 +1,49 @@
+{
+  "row": 13,
+  "prompt": "Create an AWS S3 bucket named 'example-bucket' with object lock enabled. Configure object lock governance mode with a retention period of 90 days for objects in the bucket.",
+  "val": {
+    "ok": true,
+    "elapsed_s": 14.34,
+    "error_type": null,
+    "checkov_passed": 3,
+    "checkov_failed": [],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 16.69,
+    "error_type": null,
+    "resources_created": [
+      "aws_s3_bucket.example_bucket",
+      "aws_s3_bucket_object_lock_configuration.example_bucket_lock",
+      "aws_s3_bucket_public_access_block.example_bucket_public_access",
+      "aws_s3_bucket_server_side_encryption_configuration.example_bucket_encryption"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": null,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

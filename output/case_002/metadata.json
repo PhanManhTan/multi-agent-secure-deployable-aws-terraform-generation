@@ -1,0 +1,49 @@
+{
+  "row": 2,
+  "prompt": "Make a basic AWS IAM group example with an example group policy attachment resource attaching a policy to it",
+  "val": {
+    "ok": true,
+    "elapsed_s": 7.06,
+    "error_type": null,
+    "checkov_passed": 0,
+    "checkov_failed": [],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 19.15,
+    "error_type": null,
+    "resources_created": [
+      "data.aws_iam_policy_document.example",
+      "aws_iam_group.example",
+      "aws_iam_group_policy_attachment.example",
+      "aws_iam_policy.example"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": null,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

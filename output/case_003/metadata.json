@@ -1,0 +1,57 @@
+{
+  "row": 3,
+  "prompt": "Infrastructure for an autograder for a CS class. The autograde needs to run students' code stored on GitHub in a specific environment and store the result. Make sure that the autograder prevents the students' code from reaching the internet. Accomplish this using AWS CodeBuild and AWS VPC.",
+  "val": {
+    "ok": true,
+    "elapsed_s": 11.79,
+    "error_type": null,
+    "checkov_passed": 2,
+    "checkov_failed": [],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 38.82,
+    "error_type": null,
+    "resources_created": [
+      "data.aws_iam_policy_document.codebuild_assume_role",
+      "data.aws_iam_policy_document.codebuild_policy",
+      "aws_codebuild_project.autograder",
+      "aws_iam_policy.codebuild_policy",
+      "aws_iam_role.codebuild_role",
+      "aws_iam_role_policy_attachment.codebuild_policy_attachment",
+      "aws_s3_bucket.artifact_bucket",
+      "aws_s3_bucket_public_access_block.artifact_bucket_public_access",
+      "aws_s3_bucket_server_side_encryption_configuration.artifact_bucket_encryption",
+      "aws_security_group.codebuild_sg",
+      "aws_subnet.private_subnet",
+      "aws_vpc.autograder_vpc"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": null,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}

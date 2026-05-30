@@ -1,0 +1,48 @@
+{
+  "row": 9,
+  "prompt": "sets up a basic AWS network infrastructure consisting of a Virtual Private Cloud (VPC) with a custom DHCP options set. The VPC is configured with a CIDR block The DHCP options include a domain name (windomain.local), a combination of custom and Google's DNS servers (192.168.56.102 and 8.8.8.8), and a NetBIOS name server (192.168.56.102). These DHCP options are then associated with the created VPC, customizing its DHCP settings.\n\n\n\n\n\n\n",
+  "val": {
+    "ok": true,
+    "elapsed_s": 10.82,
+    "error_type": null,
+    "checkov_passed": 0,
+    "checkov_failed": [],
+    "validate_ok": null,
+    "plan_ok": null,
+    "raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "deploy": {
+    "ok": true,
+    "elapsed_s": 16.62,
+    "error_type": null,
+    "resources_created": [
+      "aws_vpc.main",
+      "aws_vpc_dhcp_options.custom",
+      "aws_vpc_dhcp_options_association.custom_dhcp_assoc"
+    ],
+    "auto_destroyed": true,
+    "auto_destroy_error": null,
+    "apply_raw_error": "",
+    "fix_instruction": "",
+    "attempts": 1
+  },
+  "final_eval": {
+    "dataset_resource_ok": true,
+    "intent_literal_ok": null,
+    "terraform_validation_ok": true,
+    "rego_intent_ok": null,
+    "deploy_ok": true,
+    "predeploy_strict_ok": false,
+    "end_to_end_strict_ok": false,
+    "failed_dimensions": [],
+    "code_predeploy_ok": true,
+    "deployable_code_ok": true,
+    "adjusted_code_success_ok": true,
+    "benchmark_only_rego_fail": false,
+    "deploy_environment_blocked": false,
+    "strict_ok": false
+  },
+  "source": "reviews/pipeline_results_full_deploy_norego_hardened_combined.json"
+}
