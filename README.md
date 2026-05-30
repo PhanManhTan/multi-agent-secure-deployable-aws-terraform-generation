@@ -125,20 +125,118 @@ opa version
 
 ## Cài Đặt Trên Windows
 
-**1. Clone repo**
+Bạn có thể cài theo script tự động hoặc làm thủ công. Cách thủ công giúp dễ kiểm tra `.venv` và dependency hơn.
+
+### Cách 1: Cài thủ công
+
+**1. Cài yêu cầu ban đầu**
+
+Cài các tool sau trước:
+
+- Python 3.11+
+- Git
+- Terraform CLI hoặc dùng `terraform.exe` trong `bin\`
+- AWS CLI v2 nếu muốn deploy/apply thật
+
+Check nhanh trong PowerShell:
+
+```powershell
+python --version
+git --version
+```
+
+**2. Clone repo**
 
 ```bat
 git clone https://github.com/noseyug/multi-agent-secure-deployable-aws-terraform-generation.git
 cd multi-agent-secure-deployable-aws-terraform-generation
 ```
 
-**2. Chạy setup**
+**3. Tạo `.venv` trước**
+
+PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+Command Prompt:
+
+```bat
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+Nếu PowerShell chặn activate script, chạy:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+.\.venv\Scripts\Activate.ps1
+```
+
+**4. Cài Python dependencies**
+
+```powershell
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+**5. Tạo file cấu hình**
+
+PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Command Prompt:
+
+```bat
+copy .env.example .env
+```
+
+Mở `.env` và điền API key:
+
+```env
+LLM_PROVIDER=nvidia
+NVIDIA_API_KEY=nvapi-...
+```
+
+Hoặc dùng DeepSeek:
+
+```env
+LLM_PROVIDER=deepseek
+DEEPSEEK_API_KEY=sk-...
+DEEPSEEK_MODEL=deepseek-chat
+```
+
+**6. Kiểm tra toolchain**
+
+```powershell
+python --version
+terraform version
+checkov --version
+aws --version
+```
+
+Nếu `terraform` không nằm trong PATH nhưng repo có `bin\terraform.exe`, có thể kiểm tra bằng:
+
+```powershell
+.\bin\terraform.exe version
+```
+
+### Cách 2: Dùng setup script
+
+Nếu muốn cài nhanh, chạy một trong hai script sau sau khi clone repo.
+
+Command Prompt:
 
 ```bat
 setup.bat
 ```
 
-Hoặc dùng PowerShell:
+PowerShell:
 
 ```powershell
 .\setup.ps1
@@ -152,7 +250,7 @@ Script Windows tự động:
 - Tải và cài AWS CLI v2 vào `bin\awscli\` nếu có quyền Administrator
 - Tạo file `.env` từ `.env.example`
 
-**3. Điền API keys vào `.env`**
+Sau khi script chạy xong, mở `.env` và điền API key:
 
 ```env
 NVIDIA_API_KEY=nvapi-...
